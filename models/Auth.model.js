@@ -6,7 +6,7 @@ const authModelSchema = new mongoose.Schema(
     email: { type: String, unique: true, sparse: true },
     phone: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-    profile_pic: { type: String },
+    profile_pic: { type: String, required: false },
     role: { type: String, enum: ["USER", "ADMIN", "HEAD"], required: true },
   },
   {

@@ -1,4 +1,4 @@
-const authModel = require("../model/Auth.model");
+const authModel = require("../models/Auth.model");
 const {
   authValidationSchema,
   loginValidationSchema,
@@ -14,23 +14,25 @@ exports.register = async (req, res) => {
         .status(400)
         .json({ message: error.details[0].message, status: false });
     }
-    const { name, email, phone, password, profile_pic, role } = req.body;
 
-    const userExists = await authModel.findOne({ email });
+    const { name, email, phone, password, role } = req.body;
+    const userExists = await authModel.findOne({ phone });
     if (userExists) {
       return res
         .status(400)
-        .json({ message: "Email already exists", status: false });
+        .json({ message: "Phone Number already exists", status: false });
     }
+
     const hashedPassword = await bcryptjs.hash(password, 10);
+
     const newUser = await authModel.create({
       name,
       email,
       phone,
       password: hashedPassword,
-      profile_pic,
       role,
     });
+
     res.status(201).json({
       message: "User registered successfully",
       data: newUser,

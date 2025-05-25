@@ -1,26 +1,27 @@
 var express = require("express");
 var cookieParser = require("cookie-parser");
-var logger = require("morgan");
-const cors = require("cors");
 require("dotenv").config();
-var indexRouter = require("./routes/index");
-var usersRouter = require("./routes/users");
+const cors = require("cors");
+var Heaight = require("./routes/Heaight.route");
+var Auth = require("./routes/Auth.route.js");
+var Building = require("./routes/Building.route.js");
+var Flour = require("./routes/Flour.route.js");
 const connectDB = require("./config/config");
 
 var app = express();
 const PORT = process.env.PORT || 5353;
 
 // Middleware setup
-app.use(cors());
-app.use(logger("dev"));
 app.use(express.json());
+app.use(cors());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 connectDB();
-app.use("/", indexRouter);
-app.use("/api/auth", usersRouter);
+app.use("/api/auth", Auth);
+app.use("/api/Heaight", Heaight);
+app.use("/api/Building", Building);
+// app.use("/api/Flour", Flour);
 
-// catch 404 and forward to error handler
 app.get("/", (req, res) => {
   res.send("Hello World");
 });
