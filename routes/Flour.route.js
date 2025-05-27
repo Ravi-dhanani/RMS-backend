@@ -5,14 +5,19 @@ const {
   getFlour,
   updateFlour,
   deleteFlour,
+  getFlourByID,
+  getFlourByBuildingID,
 } = require("../controller/Flour.controller");
+const authenticate = require("../middleware/AuthMiddleware");
 
 var router = express.Router();
 
 /* GET home page. */
-router.post("/add", addFlour);
-router.get("/getAll", getFlour);
-router.post("/update/:id", updateFlour);
-router.post("/delete/:id", deleteFlour);
+router.post("/add", authenticate, addFlour);
+router.get("/getAll", authenticate, getFlour);
+router.post("/update/:id", authenticate, updateFlour);
+router.post("/delete/:id", authenticate, deleteFlour);
+router.get("/getSingle/:id", authenticate, getFlourByID);
+router.get("/getFlourBulding/:id", authenticate, getFlourByBuildingID);
 
 module.exports = router;

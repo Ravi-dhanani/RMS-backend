@@ -20,7 +20,7 @@ connectDB();
 app.use("/api/auth", Auth);
 app.use("/api/Heaight", Heaight);
 app.use("/api/Building", Building);
-// app.use("/api/Flour", Flour);
+app.use("/api/Flour", Flour);
 
 app.get("/", (req, res) => {
   res.send("Hello World");

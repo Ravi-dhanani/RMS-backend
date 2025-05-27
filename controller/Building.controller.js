@@ -1,8 +1,8 @@
 const { buildingValidationSchema } = require("../validators/Building");
 const BuildingModel = require("../models/Building.model");
 const HeaightModel = require("../models/Heaight.model");
+const getUserIdFromToken = require("../middleware/Auth");
 
-const authenticate = require("../middleware/AuthMiddleware");
 exports.createBuilding = async (req, res) => {
   try {
     const { error } = buildingValidationSchema.validate(req.body);
@@ -74,7 +74,7 @@ exports.deleteBuildingById = async (req, res) => {
 
 exports.getBuildingByUserId = async (req, res) => {
   try {
-    const id = await authenticate(req);
+    const id = await getUserIdFromToken(req.headers.authorization);
     const buildingUsers = await BuildingModel.find({
       user: id,
     });

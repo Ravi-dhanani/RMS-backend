@@ -3,8 +3,8 @@ const { flourSchema } = require("../validators/Flour");
 
 exports.getFlour = async (req, res) => {
   try {
-    const flours = await FlourModel.find();
-    res.json({ data: flours, status: true });
+    const flours = await FlourModel.find().populate("buildingId");
+    res.json({ message: "Flour List", data: flours, status: true });
   } catch (error) {
     res.status(500).json({ message: "Server Error", status: false });
   }
@@ -15,6 +15,14 @@ exports.addFlour = async (req, res) => {
     const { error } = flourSchema.validate(req.body);
     if (error)
       return res.status(400).json({ message: error.details[0].message });
+
+    const exitingFlour = await FlourModel.findOne({
+      flourName: req.body.flourName,
+      buildingId: req.body.buildingId,
+    });
+    if (exitingFlour)
+      return res.status(400).json({ message: "Flour already exists" });
+
     const newFlour = await FlourModel.create(req.body);
 
     res.json({
@@ -58,6 +66,30 @@ exports.updateFlour = async (req, res) => {
       data: updatedFlour,
       status: true,
     });
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", status: false });
+  }
+};
+
+exports.getFlourByID = async (req, res) => {
+  try {
+    const flours = await FlourModel.findOne({ _id: req.params.id }).populate(
+      "buildingId"
+    );
+    if (!flours) return res.status(404).json({ message: "Flours not found" });
+    res.json({ message: "Flours", data: flours, status: true });
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", status: false });
+  }
+};
+
+exports.getFlourByBuildingID = async (req, res) => {
+  try {
+    const flours = await FlourModel.find({
+      buildingId: req.params.id,
+    }).populate("buildingId");
+    if (!flours) return res.status(404).json({ message: "Flours not found" });
+    res.json({ message: "Flours", data: flours, status: true });
   } catch (error) {
     res.status(500).json({ message: "Server Error", status: false });
   }
