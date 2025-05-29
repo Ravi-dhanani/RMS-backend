@@ -8,17 +8,11 @@ const flatSchema = new mongoose.Schema({
     enum: ["Booked", "UnBooked"],
     default: "UnBooked",
   },
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-  famalyMembers: [
-    {
-      firstName: { type: String, required: false },
-      lastName: { type: String, required: false },
-      age: { type: Number, required: false },
-      occupation: { type: String, required: false },
-      relationship: { type: String, required: false },
-      contactNo: { type: String, required: false },
-    },
-  ],
+  currentMember: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Member",
+    default: null,
+  },
 });
 
 module.exports = mongoose.model("Flat", flatSchema);
