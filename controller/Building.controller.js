@@ -102,3 +102,22 @@ exports.getBuildingByUserId = async (req, res) => {
     res.status(500).json({ message: "Server Error", status: false });
   }
 };
+
+exports.getSocietyByBuilding = async (req, res) => {
+  try {
+    const building = await BuildingModel.find({
+      heaight: req.params.id,
+    });
+    if (!building)
+      return res
+        .status(404)
+        .json({ message: "Building not found", status: false });
+    res.json({
+      message: "heaight fetched successfully",
+      data: building,
+      status: true,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Server Error", status: false });
+  }
+};

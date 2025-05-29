@@ -5,6 +5,7 @@ const {
   updateBuildingById,
   deleteBuildingById,
   getBuildingByUserId,
+  getSocietyByBuilding,
 } = require("../controller/Building.controller");
 
 var router = express.Router();
@@ -15,5 +16,6 @@ router.get("/getAll", getBuildings);
 router.post("/update/:id", updateBuildingById);
 router.post("/delete/:id", deleteBuildingById);
 router.get("/get", getBuildingByUserId);
+router.get("/by-heaight/:id", getSocietyByBuilding);
 
 module.exports = router;
