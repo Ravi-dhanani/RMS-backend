@@ -24,7 +24,7 @@ exports.createHeaight = async (req, res) => {
 
 exports.getAllHeights = async (req, res) => {
   try {
-    const heights = await HeaightModel.find();
+    const heights = await HeaightModel.find().populate("authorities.user");
     res.json({
       message: "All heights retrieved successfully",
       data: heights,
