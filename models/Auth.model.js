@@ -7,7 +7,11 @@ const authModelSchema = new mongoose.Schema(
     phone: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     profile_pic: { type: String, required: false },
-    role: { type: String, enum: ["USER", "ADMIN", "HEAD"], required: true },
+    role: {
+      type: String,
+      enum: ["USER", "ADMIN", "HEAD", "PRAMUKH"],
+      required: true,
+    },
   },
   {
     timestamps: true,

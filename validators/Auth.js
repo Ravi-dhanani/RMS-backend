@@ -15,10 +15,13 @@ const authValidationSchema = Joi.object({
     "any.required": "Password is required",
   }),
   profile_pic: Joi.string().uri().optional(), // assuming it's a URL
-  role: Joi.string().required().valid("USER", "ADMIN", "HEAD").messages({
-    "any.required": "Role is required",
-    "any.only": "Role must be either user or admin or head",
-  }),
+  role: Joi.string()
+    .required()
+    .valid("USER", "ADMIN", "HEAD", "PRAMUKH")
+    .messages({
+      "any.required": "Role is required",
+      "any.only": "Role must be either user or admin or head",
+    }),
 });
 const loginValidationSchema = Joi.object({
   phone: Joi.string()

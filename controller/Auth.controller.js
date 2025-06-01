@@ -76,27 +76,42 @@ exports.login = async (req, res) => {
   }
 };
 
-
-
-exports.getUser = async (req, res) => {
+exports.getUserHead = async (req, res) => {
   try {
-
     const listOfUser = await authModel.find({
-      role: "HEAD"
-    })
+      role: "HEAD",
+    });
 
     if (!listOfUser) {
-      res.status(400)
-        .json({ message: "User Not found", status: false });
+      res.status(400).json({ message: "HEAD Not found", status: false });
     }
 
     res.status(200).json({
       message: "User list",
       data: listOfUser,
-      status: true
-    })
+      status: true,
+    });
   } catch (err) {
     return res.status(500).json({ message: "Server Error", status: false });
-
   }
-}
+};
+
+exports.getUserPramukh = async (req, res) => {
+  try {
+    const listOfUser = await authModel.find({
+      role: "PRAMUKH",
+    });
+
+    if (!listOfUser) {
+      res.status(400).json({ message: "PRAMUKH Not found", status: false });
+    }
+
+    res.status(200).json({
+      message: "User list",
+      data: listOfUser,
+      status: true,
+    });
+  } catch (err) {
+    return res.status(500).json({ message: "Server Error", status: false });
+  }
+};
