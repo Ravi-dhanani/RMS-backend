@@ -14,7 +14,7 @@ var router = express.Router();
 
 /* GET home page. */
 router.post("/add", authenticate, createFlat);
-router.get("/getAll", authenticate, getFlats);
+router.get("/getAll/:id", authenticate, getFlats);
 router.post("/update/:id", authenticate, updateFlat);
 router.post("/delete/:id", authenticate, deleteFlat);
 router.get("/getSingle/:id", authenticate, getFlatById);

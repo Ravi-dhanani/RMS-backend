@@ -3,7 +3,9 @@ const { flourSchema } = require("../validators/Flour");
 
 exports.getFlour = async (req, res) => {
   try {
-    const flours = await FlourModel.find().populate("buildingId");
+    const flours = await FlourModel.find({
+      buildingId: req.params.id,
+    }).populate("buildingId");
     res.json({ message: "Flour List", data: flours, status: true });
   } catch (error) {
     res.status(500).json({ message: "Server Error", status: false });

@@ -14,7 +14,7 @@ var router = express.Router();
 
 /* GET home page. */
 router.post("/add", authenticate, addFlour);
-router.get("/getAll", authenticate, getFlour);
+router.get("/getAll/:id", authenticate, getFlour);
 router.post("/update/:id", authenticate, updateFlour);
 router.post("/delete/:id", authenticate, deleteFlour);
 router.get("/getSingle/:id", authenticate, getFlourByID);

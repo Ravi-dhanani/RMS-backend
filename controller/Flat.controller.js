@@ -22,7 +22,9 @@ exports.createFlat = async (req, res) => {
 
 exports.getFlats = async (req, res) => {
   try {
-    const flats = await FlatModel.find()
+    const flats = await FlatModel.find({
+      flourId: req.params.id,
+    })
       .populate("flourId")
       .populate("currentMember");
     res.json({

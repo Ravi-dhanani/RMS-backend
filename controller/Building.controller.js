@@ -22,14 +22,15 @@ exports.createBuilding = async (req, res) => {
 
 exports.getBuildings = async (req, res) => {
   try {
-    const buildings = await BuildingModel.find()
-      .populate({
-        path: "heaight",
-        populate: {
-          path: "authorities.user",
-          model: "User"
-        }
-      });
+    const buildings = await BuildingModel.find({
+      heaight: req.params.id,
+    }).populate({
+      path: "heaight",
+      populate: {
+        path: "authorities.user",
+        model: "User",
+      },
+    });
     res.json({
       message: "Buildings fetched successfully",
       data: buildings,
