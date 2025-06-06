@@ -12,6 +12,13 @@ const authModelSchema = new mongoose.Schema(
       enum: ["USER", "ADMIN", "HEAD", "PRAMUKH"],
       required: true,
     },
+    heaightID: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Heaight",
+      required: function () {
+        return this.role === "USER";
+      },
+    },
   },
   {
     timestamps: true,

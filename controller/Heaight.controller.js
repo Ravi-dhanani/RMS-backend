@@ -1,5 +1,6 @@
 const { heaightValidationSchema } = require("../validators/Heaight");
 const HeaightModel = require("../models/Heaight.model");
+const BuildingModel = require("../models/Building.model");
 
 exports.createHeaight = async (req, res) => {
   try {
@@ -28,6 +29,27 @@ exports.getAllHeights = async (req, res) => {
     res.json({
       message: "All heights retrieved successfully",
       data: heights,
+      status: true,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Server Error", status: false });
+  }
+};
+
+exports.getHeightsByID = async (req, res) => {
+  try {
+    const heights = await HeaightModel.findById({
+      _id: req.params.id,
+    }).populate("authorities.user");
+    const building = await BuildingModel.find({
+      heaight: heights._id,
+    });
+    res.json({
+      message: "All heights retrieved successfully",
+      data: {
+        authorities: heights.authorities,
+        building: building,
+      },
       status: true,
     });
   } catch (err) {

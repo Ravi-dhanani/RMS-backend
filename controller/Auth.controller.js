@@ -15,7 +15,7 @@ exports.register = async (req, res) => {
         .json({ message: error.details[0].message, status: false });
     }
 
-    const { name, email, phone, password, role } = req.body;
+    const { name, email, phone, password, role, heaightID } = req.body;
     const userExists = await authModel.findOne({ phone });
     if (userExists) {
       return res
@@ -23,14 +23,13 @@ exports.register = async (req, res) => {
         .json({ message: "Phone Number already exists", status: false });
     }
 
-    const hashedPassword = await bcryptjs.hash(password, 10);
-
     const newUser = await authModel.create({
       name,
       email,
       phone,
-      password: hashedPassword,
+      password,
       role,
+      heaightID,
     });
 
     res.status(201).json({
@@ -39,13 +38,19 @@ exports.register = async (req, res) => {
       status: true,
     });
   } catch (err) {
-    return res.status(500).json({ message: "Server Error", status: false });
+    console.error("Register Error:", err);
+    return res.status(500).json({
+      message: "Server Error",
+      error: err.message,
+      status: false,
+    });
   }
 };
 
 exports.login = async (req, res) => {
   try {
     const { error } = loginValidationSchema.validate(req.body);
+    console.log(error, "error");
     if (error) {
       return res
         .status(400)
@@ -96,22 +101,97 @@ exports.getUserHead = async (req, res) => {
   }
 };
 
-exports.getUserPramukh = async (req, res) => {
+//pramukh and user
+exports.getUser = async (req, res) => {
   try {
-    const listOfUser = await authModel.find({
-      role: "PRAMUKH",
-    });
+    const listOfUser = await authModel
+      .find({
+        role: "PRAMUKH",
+      })
+      .populate("heaightID");
 
     if (!listOfUser) {
       res.status(400).json({ message: "PRAMUKH Not found", status: false });
     }
 
     res.status(200).json({
-      message: "User list",
+      message: "PRAMUKH list",
       data: listOfUser,
       status: true,
     });
   } catch (err) {
+    return res.status(500).json({ message: "Server Error", status: false });
+  }
+};
+
+exports.addUser = async (req, res) => {
+  try {
+    const { error } = authValidationSchema.validate(req.body);
+    if (error) {
+      return res
+        .status(400)
+        .json({ message: error.details[0].message, status: false });
+    }
+    const { name, email, phone, password, role, heaightID } = req.body;
+    const userExists = await authModel.findOne({ phone });
+    if (userExists) {
+      return res
+        .status(400)
+        .json({ message: "Phone Number already exists", status: false });
+    }
+    const hashedPassword = await bcryptjs.hash(password, 10);
+    const newUser = await authModel.create({
+      name,
+      email,
+      phone,
+      password: hashedPassword,
+      role,
+      heaightID,
+    });
+    res.status(201).json({
+      message: "Pramukh added successfully",
+      data: newUser,
+      status: true,
+    });
+  } catch (err) {
+    console.log(err.errmsg);
+    return res.status(500).json({ message: err.errmsg, status: false });
+  }
+};
+
+exports.updateUser = async (req, res) => {
+  try {
+    const updatedUser = await authModel.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+    if (!updatedUser) {
+      return res.status(404).json({ message: "Pramukh not found" });
+    }
+    res.status(200).json({
+      message: "Pramukh updated successfully",
+      data: updatedUser,
+      status: true,
+    });
+  } catch (err) {
+    console.error("Update Error:", err);
+    return res.status(500).json({ message: "Server Error", status: false });
+  }
+};
+
+exports.deleteUser = async (req, res) => {
+  try {
+    const deletedUser = await authModel.findByIdAndDelete(req.params.id);
+    if (!deletedUser) {
+      return res.status(404).json({ message: "Pramukh not found" });
+    }
+    res.status(200).json({
+      message: "Pramukh deleted successfully",
+      status: true,
+    });
+  } catch (err) {
+    console.error("Delete Error:", err);
     return res.status(500).json({ message: "Server Error", status: false });
   }
 };

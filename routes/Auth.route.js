@@ -4,6 +4,13 @@ const {
   login,
   getUserHead,
   getUserPramukh,
+  addPramukh,
+  updatePramukh,
+  deletePramukh,
+  addUser,
+  updateUser,
+  deleteUser,
+  getUser,
 } = require("../controller/Auth.controller");
 var router = express.Router();
 
@@ -11,6 +18,9 @@ var router = express.Router();
 router.post("/register", register);
 router.post("/login", login);
 router.get("/user/head/list", getUserHead);
-router.get("/user/pramukh/list", getUserPramukh);
+router.get("/user/list", getUser);
+router.post("/user/add", addUser);
+router.post("/user/update/:id", updateUser);
+router.post("/user/delete/:id", deleteUser);
 
 module.exports = router;
