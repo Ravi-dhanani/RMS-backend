@@ -3,8 +3,8 @@ const {
   authValidationSchema,
   loginValidationSchema,
 } = require("../validators/Auth");
-const bcryptjs = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const cloudinary = require("../config/cloudinary");
 
 exports.register = async (req, res) => {
   try {
@@ -14,9 +14,22 @@ exports.register = async (req, res) => {
         .status(400)
         .json({ message: error.details[0].message, status: false });
     }
+    console.log(error);
+    const {
+      name,
+      email,
+      phone,
+      password,
+      role,
+      heaightID,
+      profile_pic,
+      familyMembers,
+      businessDetails,
+      vehicleDetails,
+    } = req.body;
 
-    const { name, email, phone, password, role, heaightID } = req.body;
     const userExists = await authModel.findOne({ phone });
+
     if (userExists) {
       return res
         .status(400)
@@ -30,6 +43,15 @@ exports.register = async (req, res) => {
       password,
       role,
       heaightID,
+      profile_pic: profile_pic
+        ? {
+            id: profile_pic.id,
+            image: profile_pic.image,
+          }
+        : null,
+      familyMembers: familyMembers,
+      businessDetails: businessDetails,
+      vehicleDetails: vehicleDetails,
     });
 
     res.status(201).json({
@@ -57,18 +79,13 @@ exports.login = async (req, res) => {
         .json({ message: error.details[0].message, status: false });
     }
     const { phone, password } = req.body;
-    const user = await authModel.findOne({ phone });
+    const user = await authModel.findOne({ phone: phone, password: password });
     if (!user) {
       return res
         .status(400)
         .json({ message: "Invalid phone or password", status: false });
     }
-    const isMatch = await bcryptjs.compare(password, user.password);
-    if (!isMatch) {
-      return res
-        .status(400)
-        .json({ message: "Invalid phone or password", status: false });
-    }
+
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
     res.json({
       message: "Logged in successfully",
@@ -139,12 +156,11 @@ exports.addUser = async (req, res) => {
         .status(400)
         .json({ message: "Phone Number already exists", status: false });
     }
-    const hashedPassword = await bcryptjs.hash(password, 10);
     const newUser = await authModel.create({
       name,
       email,
       phone,
-      password: hashedPassword,
+      password,
       role,
       heaightID,
     });
@@ -192,6 +208,33 @@ exports.deleteUser = async (req, res) => {
     });
   } catch (err) {
     console.error("Delete Error:", err);
+    return res.status(500).json({ message: "Server Error", status: false });
+  }
+};
+
+exports.getProfilePic = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res
+        .status(400)
+        .json({ message: "Image is required", status: false });
+    }
+    const fileBuffer = req.file.buffer.toString("base64");
+    const fileDataUri = `data:${req.file.mimetype};base64,${fileBuffer}`;
+    const result = await cloudinary.uploader.upload(fileDataUri, {
+      folder: "profile_pics",
+    });
+    console.log(result);
+    res.json({
+      message: "Profile Pic",
+      data: {
+        id: result.public_id,
+        url: result.secure_url,
+      },
+      status: true,
+    });
+  } catch (err) {
+    console.error("Get Profile Pic Error:", err);
     return res.status(500).json({ message: "Server Error", status: false });
   }
 };
