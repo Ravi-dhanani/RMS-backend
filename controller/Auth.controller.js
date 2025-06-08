@@ -123,7 +123,7 @@ exports.getUser = async (req, res) => {
   try {
     const listOfUser = await authModel
       .find({
-        role: "PRAMUKH",
+        role: { $in: ["PRAMUKH", "USER"] },
       })
       .populate("heaightID");
 
@@ -149,7 +149,18 @@ exports.addUser = async (req, res) => {
         .status(400)
         .json({ message: error.details[0].message, status: false });
     }
-    const { name, email, phone, password, role, heaightID } = req.body;
+    const {
+      name,
+      email,
+      phone,
+      password,
+      role,
+      heaightID,
+      profile_pic,
+      familyMembers,
+      businessDetails,
+      vehicleDetails,
+    } = req.body;
     const userExists = await authModel.findOne({ phone });
     if (userExists) {
       return res
@@ -163,6 +174,10 @@ exports.addUser = async (req, res) => {
       password,
       role,
       heaightID,
+      profile_pic,
+      familyMembers,
+      businessDetails,
+      vehicleDetails,
     });
     res.status(201).json({
       message: "Pramukh added successfully",
@@ -177,16 +192,39 @@ exports.addUser = async (req, res) => {
 
 exports.updateUser = async (req, res) => {
   try {
+    const {
+      name,
+      email,
+      phone,
+      password,
+      role,
+      heaightID,
+      profile_pic,
+      familyMembers,
+      businessDetails,
+      vehicleDetails,
+    } = req.body;
     const updatedUser = await authModel.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      {
+        name,
+        email,
+        phone,
+        password,
+        role,
+        heaightID,
+        profile_pic,
+        familyMembers,
+        businessDetails,
+        vehicleDetails,
+      },
       { new: true }
     );
     if (!updatedUser) {
-      return res.status(404).json({ message: "Pramukh not found" });
+      return res.status(404).json({ message: "User not found" });
     }
     res.status(200).json({
-      message: "Pramukh updated successfully",
+      message: "Data updated successfully",
       data: updatedUser,
       status: true,
     });
@@ -224,7 +262,6 @@ exports.getProfilePic = async (req, res) => {
     const result = await cloudinary.uploader.upload(fileDataUri, {
       folder: "profile_pics",
     });
-    console.log(result);
     res.json({
       message: "Profile Pic",
       data: {
@@ -235,6 +272,45 @@ exports.getProfilePic = async (req, res) => {
     });
   } catch (err) {
     console.error("Get Profile Pic Error:", err);
+    return res.status(500).json({ message: "Server Error", status: false });
+  }
+};
+
+exports.updateProfilePic = async (req, res) => {
+  try {
+    const { oldImageId } = req.body;
+
+    if (!req.file) {
+      return res
+        .status(400)
+        .json({ message: "Image is required", status: false });
+    }
+
+    if (oldImageId) {
+      try {
+        await cloudinary.uploader.destroy(oldImageId);
+      } catch (deleteErr) {
+        console.warn("Old image deletion failed:", deleteErr.message);
+      }
+    }
+
+    const fileBuffer = req.file.buffer.toString("base64");
+    const fileDataUri = `data:${req.file.mimetype};base64,${fileBuffer}`;
+
+    const result = await cloudinary.uploader.upload(fileDataUri, {
+      folder: "profile_pics",
+    });
+
+    return res.json({
+      message: "Profile picture updated successfully",
+      data: {
+        id: result.public_id,
+        url: result.secure_url,
+      },
+      status: true,
+    });
+  } catch (err) {
+    console.error("Update Profile Pic Error:", err);
     return res.status(500).json({ message: "Server Error", status: false });
   }
 };
