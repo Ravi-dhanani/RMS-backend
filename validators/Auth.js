@@ -74,7 +74,7 @@ const authValidationSchema = Joi.object({
     otherwise: Joi.forbidden(),
   }),
   familyMembers: Joi.when("role", {
-    is: Joi.valid("USER", "PRAMUKH", "HEAD"),
+    is: Joi.valid("USER", "PRAMUKH"),
     then: Joi.array().items(familyMemberSchema).required().messages({
       "any.required": "Family members are required for this role",
       "array.base": "Family members must be an array",
@@ -83,7 +83,7 @@ const authValidationSchema = Joi.object({
   }),
 
   businessDetails: Joi.when("role", {
-    is: Joi.valid("USER", "PRAMUKH", "HEAD"),
+    is: Joi.valid("USER", "PRAMUKH"),
 
     then: Joi.array().items(businessDetailSchema).required().messages({
       "any.required": "Business details are required for this role",
@@ -93,7 +93,7 @@ const authValidationSchema = Joi.object({
   }),
 
   vehicleDetails: Joi.when("role", {
-    is: Joi.valid("USER", "PRAMUKH", "HEAD"),
+    is: Joi.valid("USER", "PRAMUKH"),
     then: Joi.array().items(vehicleDetailSchema).required().messages({
       "any.required": "Vehicle details are required for this role",
       "array.base": "Vehicle details must be an array",

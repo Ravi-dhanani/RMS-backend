@@ -1,5 +1,6 @@
 const FlourModel = require("../models/Flour.model");
 const { flourSchema } = require("../validators/Flour");
+const FlatModel = require("../models/Flat.model");
 
 exports.getFlour = async (req, res) => {
   try {
@@ -93,6 +94,33 @@ exports.getFlourByBuildingID = async (req, res) => {
     if (!flours) return res.status(404).json({ message: "Flours not found" });
     res.json({ message: "Flours", data: flours, status: true });
   } catch (error) {
+    res.status(500).json({ message: "Server Error", status: false });
+  }
+};
+
+
+exports.getFlourAndFlat = async (req, res) => {
+  try {
+    const flours = await FlourModel.find({
+      buildingId: req.params.id,
+    }).populate("buildingId");
+
+
+
+    const filterFlourAndFlat = await Promise.all(
+      flours.map(async (flour) => {
+        const flats = await FlatModel.find({ flourId: flour._id });
+
+        return {
+          _id: flour._id,
+          flourName: flour.flourName,
+          flats: flats,
+        };
+      })
+    );
+    res.json({ message: "Flour List", data: filterFlourAndFlat, status: true });
+  } catch (error) {
+    console.log(error)
     res.status(500).json({ message: "Server Error", status: false });
   }
 };
