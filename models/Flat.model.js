@@ -10,7 +10,7 @@ const flatSchema = new mongoose.Schema({
   },
   currentMember: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Member",
+    ref: "User",
     default: null,
   },
 });

@@ -119,11 +119,11 @@ exports.getUserHead = async (req, res) => {
 };
 
 //pramukh and user
-exports.getUser = async (req, res) => {
+exports.getPramukh = async (req, res) => {
   try {
     const listOfUser = await authModel
       .find({
-        role: { $in: ["PRAMUKH", "USER"] },
+        role: "PRAMUKH",
       })
       .populate("heaightID");
 
@@ -133,6 +133,27 @@ exports.getUser = async (req, res) => {
 
     res.status(200).json({
       message: "PRAMUKH list",
+      data: listOfUser,
+      status: true,
+    });
+  } catch (err) {
+    return res.status(500).json({ message: "Server Error", status: false });
+  }
+};
+exports.getUser = async (req, res) => {
+  try {
+    const listOfUser = await authModel
+      .find({
+        role: "USER",
+      })
+      .populate("heaightID");
+
+    if (!listOfUser) {
+      res.status(400).json({ message: "User Not found", status: false });
+    }
+
+    res.status(200).json({
+      message: "User list",
       data: listOfUser,
       status: true,
     });

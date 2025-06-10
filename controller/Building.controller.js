@@ -24,13 +24,15 @@ exports.getBuildings = async (req, res) => {
   try {
     const buildings = await BuildingModel.find({
       heaight: req.params.id,
-    }).populate({
-      path: "heaight",
-      populate: {
-        path: "authorities.user",
-        model: "User",
-      },
-    });
+    })
+      .populate({
+        path: "heaight",
+        populate: {
+          path: "authorities.user",
+          model: "User",
+        },
+      })
+      .populate("user");
     res.json({
       message: "Buildings fetched successfully",
       data: buildings,
@@ -118,8 +120,7 @@ exports.getSocietyByBuilding = async (req, res) => {
     });
     const heaights = await HeaightModel.findById({
       _id: req.params.id,
-
-    }).populate("authorities.user")
+    }).populate("authorities.user");
 
     if (!building)
       return res
@@ -142,7 +143,7 @@ exports.getSocietyByBuilding = async (req, res) => {
       message: "heaight fetched successfully",
       data: {
         building: building,
-        authorities: flattenedAuthorities
+        authorities: flattenedAuthorities,
       },
       status: true,
     });

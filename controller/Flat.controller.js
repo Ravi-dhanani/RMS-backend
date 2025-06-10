@@ -9,7 +9,23 @@ exports.createFlat = async (req, res) => {
       return res.status(400).json({ message: error.details[0].message });
     const Flour = await FlourModel.findById(req.body.flourId);
     if (!Flour) return res.status(400).json({ message: "Flour not found" });
-    const flat = await FlatModel.create(req.body);
+
+    const existingFlat = await FlatModel.findOne({
+      flatName: req.body.flatName,
+      flourId: req.body.flourId,
+    });
+
+    if (existingFlat) {
+      return res
+        .status(400)
+        .json({ message: "Flat number already exists in this floor" });
+    }
+    const flat = await FlatModel.create({
+      currentMember: req.body.currentMember ? req.body.currentMember : null,
+      flatName: req.body.flatName,
+      flourId: req.body.flourId,
+      isBooked: req.body.currentMember ? "Booked" : "UnBooked",
+    });
     res.status(201).json({
       message: "Flat created successfully",
       data: flat,
@@ -27,12 +43,14 @@ exports.getFlats = async (req, res) => {
     })
       .populate("flourId")
       .populate("currentMember");
+    console.log(flats);
     res.json({
       message: "Flats fetched successfully",
       data: flats,
       status: true,
     });
   } catch (err) {
+    console.log(err);
     res.status(500).json({ message: "Server Error", status: false });
   }
 };

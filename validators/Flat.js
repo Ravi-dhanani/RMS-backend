@@ -24,9 +24,11 @@ const flatValidationSchema = Joi.object({
     .messages({
       "any.only": 'isBooked must be either "Booked" or "UnBooked"',
     }),
-  // currentMember: objectId.required().messages({
-  //   "any.required": "Member ID is required",
-  // }),
+  currentMember: objectId
+    .messages({
+      "any.required": "Current Member is required",
+    })
+    .optional(),
 });
 
 module.exports = { flatValidationSchema };
