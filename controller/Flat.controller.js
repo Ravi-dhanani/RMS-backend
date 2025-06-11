@@ -21,7 +21,7 @@ exports.createFlat = async (req, res) => {
         .json({ message: "Flat number already exists in this floor" });
     }
     const flat = await FlatModel.create({
-      currentMember: req.body.currentMember ? req.body.currentMember : null,
+      currentMember: req.body.currentMember || null,
       flatName: req.body.flatName,
       flourId: req.body.flourId,
       isBooked: req.body.currentMember ? "Booked" : "UnBooked",
@@ -43,14 +43,13 @@ exports.getFlats = async (req, res) => {
     })
       .populate("flourId")
       .populate("currentMember");
-    console.log(flats);
+
     res.json({
       message: "Flats fetched successfully",
       data: flats,
       status: true,
     });
   } catch (err) {
-    console.log(err);
     res.status(500).json({ message: "Server Error", status: false });
   }
 };
@@ -76,7 +75,12 @@ exports.updateFlat = async (req, res) => {
       return res.status(400).json({ message: error.details[0].message });
     const updatedFlat = await FlatModel.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      {
+        currentMember: req.body.currentMember || null,
+        flatName: req.body.flatName,
+        flourId: req.body.flourId,
+        isBooked: req.body.currentMember ? "Booked" : "UnBooked",
+      },
       { new: true }
     ).populate("flourId");
     if (!updatedFlat)

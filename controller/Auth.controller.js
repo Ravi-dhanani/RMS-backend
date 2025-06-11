@@ -3,6 +3,7 @@ const {
   authValidationSchema,
   loginValidationSchema,
 } = require("../validators/Auth");
+
 const jwt = require("jsonwebtoken");
 const cloudinary = require("../config/cloudinary");
 
@@ -14,7 +15,6 @@ exports.register = async (req, res) => {
         .status(400)
         .json({ message: error.details[0].message, status: false });
     }
-    console.log(error);
     const {
       name,
       email,
@@ -60,7 +60,6 @@ exports.register = async (req, res) => {
       status: true,
     });
   } catch (err) {
-    console.error("Register Error:", err);
     return res.status(500).json({
       message: "Server Error",
       error: err.message,
@@ -72,7 +71,6 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { error } = loginValidationSchema.validate(req.body);
-    console.log(error, "error");
     if (error) {
       return res
         .status(400)
@@ -118,6 +116,27 @@ exports.getUserHead = async (req, res) => {
   }
 };
 
+exports.getSubAdmin = async (req, res) => {
+  try {
+    const listOfUser = await authModel
+      .find({
+        role: "SUB_ADMIN",
+      })
+      .populate("heaightID");
+
+    if (!listOfUser) {
+      res.status(400).json({ message: "Sub Admin Not found", status: false });
+    }
+
+    res.status(200).json({
+      message: "Sub Admin list",
+      data: listOfUser,
+      status: true,
+    });
+  } catch (err) {
+    return res.status(500).json({ message: "Server Error", status: false });
+  }
+};
 //pramukh and user
 exports.getPramukh = async (req, res) => {
   try {
@@ -144,7 +163,7 @@ exports.getUser = async (req, res) => {
   try {
     const listOfUser = await authModel
       .find({
-        role: "USER",
+        role: { $in: ["PRAMUKH", "USER"] },
       })
       .populate("heaightID");
 
@@ -165,11 +184,13 @@ exports.getUser = async (req, res) => {
 exports.addUser = async (req, res) => {
   try {
     const { error } = authValidationSchema.validate(req.body);
+
     if (error) {
       return res
         .status(400)
         .json({ message: error.details[0].message, status: false });
     }
+
     const {
       name,
       email,
@@ -182,7 +203,9 @@ exports.addUser = async (req, res) => {
       businessDetails,
       vehicleDetails,
     } = req.body;
+
     const userExists = await authModel.findOne({ phone });
+
     if (userExists) {
       return res
         .status(400)
@@ -201,12 +224,11 @@ exports.addUser = async (req, res) => {
       vehicleDetails,
     });
     res.status(201).json({
-      message: "Pramukh added successfully",
+      message: "Data added successfully",
       data: newUser,
       status: true,
     });
   } catch (err) {
-    console.log(err.errmsg);
     return res.status(500).json({ message: err.errmsg, status: false });
   }
 };
@@ -250,7 +272,6 @@ exports.updateUser = async (req, res) => {
       status: true,
     });
   } catch (err) {
-    console.error("Update Error:", err);
     return res.status(500).json({ message: "Server Error", status: false });
   }
 };

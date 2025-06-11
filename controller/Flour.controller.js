@@ -98,14 +98,11 @@ exports.getFlourByBuildingID = async (req, res) => {
   }
 };
 
-
 exports.getFlourAndFlat = async (req, res) => {
   try {
     const flours = await FlourModel.find({
       buildingId: req.params.id,
     }).populate("buildingId");
-
-
 
     const filterFlourAndFlat = await Promise.all(
       flours.map(async (flour) => {
@@ -120,7 +117,6 @@ exports.getFlourAndFlat = async (req, res) => {
     );
     res.json({ message: "Flour List", data: filterFlourAndFlat, status: true });
   } catch (error) {
-    console.log(error)
     res.status(500).json({ message: "Server Error", status: false });
   }
 };

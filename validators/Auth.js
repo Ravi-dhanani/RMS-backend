@@ -63,13 +63,13 @@ const authValidationSchema = Joi.object({
   }),
   role: Joi.string()
     .required()
-    .valid("USER", "ADMIN", "HEAD", "PRAMUKH")
+    .valid("USER", "ADMIN", "HEAD", "SUB_ADMIN", "PRAMUKH")
     .messages({
       "any.required": "Role is required",
       "any.only": "Role must be either user or admin or head",
     }),
   heaightID: objectIdValidator.when("role", {
-    is: Joi.valid("USER", "PRAMUKH"),
+    is: Joi.valid("USER", "PRAMUKH", "SUB_ADMIN"),
     then: Joi.required(),
     otherwise: Joi.forbidden(),
   }),

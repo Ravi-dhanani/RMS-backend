@@ -46,7 +46,7 @@ const authModelSchema = new mongoose.Schema(
     password: { type: String, required: true },
     role: {
       type: String,
-      enum: ["USER", "ADMIN", "HEAD", "PRAMUKH"],
+      enum: ["USER", "ADMIN", "SUB_ADMIN", "HEAD", "PRAMUKH"],
       required: true,
     },
     profile_pic: {
