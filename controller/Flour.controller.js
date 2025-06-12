@@ -98,16 +98,48 @@ exports.getFlourByBuildingID = async (req, res) => {
   }
 };
 
+// exports.getFlourAndFlat = async (req, res) => {
+//   try {
+//     const flours = await FlourModel.find({
+//       buildingId: req.params.id,
+//     }).populate("buildingId");
+
+//     const filterFlourAndFlat = await Promise.all(
+//       flours.map(async (flour) => {
+//         const flats = await FlatModel.find({ flourId: flour._id });
+
+//         return {
+//           _id: flour._id,
+//           flourName: flour.flourName,
+//           flats: flats,
+//         };
+//       })
+//     );
+//     res.json({ message: "Flour List", data: filterFlourAndFlat, status: true });
+//   } catch (error) {
+//     res.status(500).json({ message: "Server Error", status: false });
+//   }
+// };
+
 exports.getFlourAndFlat = async (req, res) => {
   try {
-    const flours = await FlourModel.find({
+    const { page = 1, limit = 10, search = "" } = req.query;
+
+    const flourFilter = {
       buildingId: req.params.id,
-    }).populate("buildingId");
+      flourName: { $regex: search, $options: "i" },
+    };
+
+    const totalFlours = await FlourModel.countDocuments(flourFilter);
+
+    const flours = await FlourModel.find(flourFilter)
+      .populate("buildingId")
+      .skip((page - 1) * limit)
+      .limit(Number(limit));
 
     const filterFlourAndFlat = await Promise.all(
       flours.map(async (flour) => {
         const flats = await FlatModel.find({ flourId: flour._id });
-
         return {
           _id: flour._id,
           flourName: flour.flourName,
@@ -115,8 +147,17 @@ exports.getFlourAndFlat = async (req, res) => {
         };
       })
     );
-    res.json({ message: "Flour List", data: filterFlourAndFlat, status: true });
+
+    res.json({
+      message: "Flour List",
+      data: filterFlourAndFlat,
+      total: totalFlours,
+      page: Number(page),
+      limit: Number(limit),
+      status: true,
+    });
   } catch (error) {
+    console.error("Error:", error);
     res.status(500).json({ message: "Server Error", status: false });
   }
 };

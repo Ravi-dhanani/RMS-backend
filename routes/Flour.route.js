@@ -20,6 +20,6 @@ router.post("/update/:id", authenticate, updateFlour);
 router.post("/delete/:id", authenticate, deleteFlour);
 router.get("/getSingle/:id", authenticate, getFlourByID);
 router.get("/getFlourBulding/:id", authenticate, getFlourByBuildingID);
-router.get("/getFlourFlat/:id", authenticate, getFlourAndFlat);
+router.post("/getFlourFlat/:id", authenticate, getFlourAndFlat);
 
 module.exports = router;
