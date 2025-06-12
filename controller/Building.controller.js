@@ -113,19 +113,68 @@ exports.getBuildingByUserId = async (req, res) => {
   }
 };
 
+// exports.getSocietyByBuilding = async (req, res) => {
+//   try {
+//     const building = await BuildingModel.find({
+//       heaight: req.params.id,
+//     });
+//     const heaights = await HeaightModel.findById({
+//       _id: req.params.id,
+//     }).populate("authorities.user");
+
+//     if (!building)
+//       return res
+//         .status(404)
+//         .json({ message: "Building not found", status: false });
+
+//     const flattenedAuthorities = heaights.authorities.map((auth) => {
+//       const { _id, name, email, phone, role, profile_pic } = auth.user || {};
+//       return {
+//         _id: auth._id,
+//         name,
+//         email,
+//         phone,
+//         role,
+//         profile_pic,
+//       };
+//     });
+
+//     res.json({
+//       message: "heaight fetched successfully",
+//       data: {
+//         building: building,
+//         authorities: flattenedAuthorities,
+//       },
+//       status: true,
+//     });
+//   } catch (err) {
+//     res.status(500).json({ message: "Server Error", status: false });
+//   }
+// };
+
 exports.getSocietyByBuilding = async (req, res) => {
   try {
-    const building = await BuildingModel.find({
-      heaight: req.params.id,
-    });
-    const heaights = await HeaightModel.findById({
-      _id: req.params.id,
-    }).populate("authorities.user");
+    const { page = 1, limit = 10, search = "" } = req.query;
 
-    if (!building)
+    const filter = {
+      heaight: req.params.id,
+      buildingName: { $regex: search, $options: "i" },
+    };
+
+    const buildings = await BuildingModel.find(filter)
+      .skip((page - 1) * limit)
+      .limit(Number(limit));
+
+    const totalBuildings = await BuildingModel.countDocuments(filter);
+
+    const heaights = await HeaightModel.findById(req.params.id).populate(
+      "authorities.user"
+    );
+
+    if (!heaights)
       return res
         .status(404)
-        .json({ message: "Building not found", status: false });
+        .json({ message: "Heaight not found", status: false });
 
     const flattenedAuthorities = heaights.authorities.map((auth) => {
       const { _id, name, email, phone, role, profile_pic } = auth.user || {};
@@ -140,14 +189,20 @@ exports.getSocietyByBuilding = async (req, res) => {
     });
 
     res.json({
-      message: "heaight fetched successfully",
+      message: "Heaight fetched successfully",
       data: {
-        building: building,
-        authorities: flattenedAuthorities,
+        total: totalBuildings,
+        page: Number(page),
+        limit: Number(limit),
+        result: {
+          buildings,
+          authorities: flattenedAuthorities,
+        },
       },
       status: true,
     });
   } catch (err) {
+    console.error("Error:", err);
     res.status(500).json({ message: "Server Error", status: false });
   }
 };

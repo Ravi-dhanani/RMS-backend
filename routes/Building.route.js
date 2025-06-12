@@ -16,6 +16,6 @@ router.get("/getAll/:id", getBuildings);
 router.post("/update/:id", updateBuildingById);
 router.post("/delete/:id", deleteBuildingById);
 router.get("/get", getBuildingByUserId);
-router.get("/by-heaight/:id", getSocietyByBuilding);
+router.post("/by-heaight/:id", getSocietyByBuilding);
 
 module.exports = router;
