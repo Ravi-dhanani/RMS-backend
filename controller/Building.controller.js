@@ -127,10 +127,12 @@ exports.getSocietyByBuilding = async (req, res) => {
       .limit(Number(limit));
 
     const totalBuildings = await BuildingModel.countDocuments(filter);
-
     const heaights = await HeaightModel.findById(req.params.id).populate(
-      "authorities.user"
-    );
+      "authorities.user");
+    const imagesHeights = await HeaightModel.findById(req.params.id)
+      .select("images")
+      .lean();
+
 
     if (!heaights)
       return res
@@ -148,7 +150,6 @@ exports.getSocietyByBuilding = async (req, res) => {
         profile_pic,
       };
     });
-
     res.json({
       message: "Heaight fetched successfully",
       data: {
@@ -158,6 +159,7 @@ exports.getSocietyByBuilding = async (req, res) => {
         result: {
           buildings,
           authorities: flattenedAuthorities,
+          heightsImage: imagesHeights
         },
       },
       status: true,

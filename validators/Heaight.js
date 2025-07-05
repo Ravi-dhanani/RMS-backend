@@ -31,6 +31,22 @@ const heaightValidationSchema = Joi.object({
       "array.min": "At least one authority must be provided",
       "any.required": "Authorities field is required",
     }),
+  images: Joi.array()
+    .items(
+      Joi.object({
+        image: Joi.string().uri().required().messages({
+          "string.uri": "Image must be a valid URL",
+          "any.required": "Image URL is required",
+        }),
+        id: Joi.string().required().messages({
+          "string.empty": "ID is required for each image",
+        }),
+      })
+    )
+    .optional()
+    .messages({
+      "array.base": "Images must be an array",
+    }),
 });
 
 module.exports = { heaightValidationSchema };

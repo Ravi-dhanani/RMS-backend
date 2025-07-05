@@ -1,27 +1,98 @@
 const { heaightValidationSchema } = require("../validators/Heaight");
 const HeaightModel = require("../models/Heaight.model");
 const BuildingModel = require("../models/Building.model");
+const cloudinary = require("../config/cloudinary");
+
+// exports.createHeaight = async (req, res) => {
+//   try {
+//     const { error } = heaightValidationSchema.validate(req.body);
+//     if (error)
+//       return res.status(400).json({ message: error.details[0].message });
+//     const existingHeaight = await HeaightModel.findOne({
+//       name: req.body.name,
+//     });
+//     if (existingHeaight)
+//       return res.status(400).json({ message: "Height already exists" });
+//     const heaight = await HeaightModel.create(req.body);
+//     res.status(201).json({
+//       message: "Height created successfully",
+//       data: heaight,
+//       status: true,
+//     });
+//   } catch (err) {
+//     res.status(500).json({ message: "Server Error", status: false });
+//   }
+// };
+
 
 exports.createHeaight = async (req, res) => {
   try {
-    const { error } = heaightValidationSchema.validate(req.body);
-    if (error)
+    const files = req.files || [];
+    if (!req.body) {
+      return res.status(400).json({ message: "Missing 'data' field in request" });
+    }
+
+    let body;
+    try {
+      body = {
+        name: req.body.name,
+        address: req.body.address,
+        authorities: JSON.parse(req.body.authorities),
+      }
+    } catch (err) {
+      return res.status(400).json({ message: "Invalid JSON in 'data' field" });
+    }
+
+    const uploadedImages = await Promise.all(
+      files.map((file) => {
+        return new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(
+            { folder: "heights" },
+            (err, result) => {
+              if (err) return reject(err);
+              resolve({
+                image: result.secure_url,
+                id: result.public_id,
+              });
+            }
+          );
+          stream.end(file.buffer);
+        });
+      })
+    );
+
+    // Step 3: Attach images to body
+    body.images = uploadedImages;
+
+    // Step 4: Joi validation
+    const { error } = heaightValidationSchema.validate(body);
+    if (error) {
       return res.status(400).json({ message: error.details[0].message });
-    const existingHeaight = await HeaightModel.findOne({
-      name: req.body.name,
-    });
-    if (existingHeaight)
+    }
+
+    // Step 5: Check for existing
+    const existingHeaight = await HeaightModel.findOne({ name: body.name });
+    if (existingHeaight) {
       return res.status(400).json({ message: "Height already exists" });
-    const heaight = await HeaightModel.create(req.body);
+    }
+    // Step 6: Create and respond
+    const heaight = await HeaightModel.create({
+      name: body.name,
+      address: body.address,
+      authorities: body.authorities.map((item) => ({ user: item.user })),
+      images: body.images
+    });
     res.status(201).json({
       message: "Height created successfully",
       data: heaight,
       status: true,
     });
   } catch (err) {
+    console.error("Error in createHeaight:", err);
     res.status(500).json({ message: "Server Error", status: false });
   }
 };
+
 
 exports.getAllHeights = async (req, res) => {
   try {
