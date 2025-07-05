@@ -1,13 +1,13 @@
 const Joi = require("joi");
 const mongoose = require("mongoose");
 
+// Custom ObjectId validator
 const objectIdValidator = Joi.string().custom((value, helpers) => {
   if (!mongoose.Types.ObjectId.isValid(value)) {
     return helpers.message("Invalid heaightID format");
   }
   return value;
-});
-const allowedRolesForExtraDetails = Joi.valid("PRAMUKH", "HEAD");
+}, "ObjectId Validator");
 
 const familyMemberSchema = Joi.object({
   name: Joi.string().required(),
@@ -30,6 +30,7 @@ const vehicleDetailSchema = Joi.object({
   vehicleType: Joi.string().required(),
   vehicleNo: Joi.string().required(),
 });
+
 const profilePicSchema = Joi.object({
   image: Joi.string().uri().required().messages({
     "string.uri": "Image must be a valid URI",
@@ -40,6 +41,15 @@ const profilePicSchema = Joi.object({
   }),
 });
 
+// Helper function to detect if the user is a "USER-type"
+const isUserType = (role, subRoles) => {
+  return (
+    role === "USER" ||
+    (Array.isArray(subRoles) && subRoles.some((r) => ["HEAD", "PRAMUKH"].includes(r)))
+  );
+};
+
+// Main schema
 const authValidationSchema = Joi.object({
   name: Joi.string().optional(),
   email: Joi.string().email().optional(),
@@ -54,54 +64,82 @@ const authValidationSchema = Joi.object({
     "string.min": "Password must be at least 6 characters",
     "any.required": "Password is required",
   }),
-  profile_pic: Joi.when("role", {
-    is: Joi.valid("USER", "PRAMUKH", "HEAD"),
-    then: profilePicSchema.required().messages({
-      "any.required": "Profile picture is required for this role",
-    }),
-    otherwise: Joi.forbidden(),
-  }),
   role: Joi.string()
     .required()
-    .valid("USER", "ADMIN", "HEAD", "SUB_ADMIN", "PRAMUKH")
+    .valid("USER", "ADMIN")
     .messages({
       "any.required": "Role is required",
-      "any.only": "Role must be either user or admin or head",
+      "any.only": "Role must be USER or ADMIN",
     }),
-  heaightID: objectIdValidator.when("role", {
-    is: Joi.valid("USER", "PRAMUKH", "SUB_ADMIN"),
-    then: Joi.required(),
-    otherwise: Joi.forbidden(),
-  }),
-  familyMembers: Joi.when("role", {
-    is: Joi.valid("USER", "PRAMUKH"),
-    then: Joi.array().items(familyMemberSchema).required().messages({
-      "any.required": "Family members are required for this role",
-      "array.base": "Family members must be an array",
-    }),
-    otherwise: Joi.forbidden(),
+  subRoles: Joi.array()
+    .items(Joi.string().valid("HEAD", "PRAMUKH"))
+    .default([]),
+
+  // Conditionally required based on role + subRoles
+  profile_pic: Joi.any().custom((value, helpers) => {
+    const { role, subRoles } = helpers?.state?.ancestors?.[0] || {};
+
+    const isUserType =
+      role === "USER" ||
+      (Array.isArray(subRoles) && subRoles.some(r => ["PRAMUKH", "HEAD"].includes(r)));
+
+    if (isUserType) {
+      if (!value) {
+        return helpers.error("any.required", { label: "Profile picture is required for this role" });
+      }
+
+      // Validate using the defined profilePicSchema
+      const { error } = profilePicSchema.validate(value, { abortEarly: true });
+      if (error) {
+        return helpers.message(error.details[0].message);
+      }
+    }
+
+    return value;
   }),
 
-  businessDetails: Joi.when("role", {
-    is: Joi.valid("USER", "PRAMUKH"),
 
-    then: Joi.array().items(businessDetailSchema).required().messages({
-      "any.required": "Business details are required for this role",
-      "array.base": "Business details must be an array",
-    }),
-    otherwise: Joi.forbidden(),
+  heaightID: objectIdValidator.optional(),
+
+
+  familyMembers: Joi.any().custom((value, helpers) => {
+    const { role, subRoles } = helpers?.state?.ancestors?.[0] || {};
+    if (isUserType(role, subRoles)) {
+      if (!Array.isArray(value) || value.length === 0) {
+        return helpers.message("Family members are required for USER-type roles");
+      }
+      const { error } = Joi.array().items(familyMemberSchema).validate(value);
+      if (error) return helpers.message("Invalid family member details");
+    }
+    return value;
   }),
 
-  vehicleDetails: Joi.when("role", {
-    is: Joi.valid("USER", "PRAMUKH"),
-    then: Joi.array().items(vehicleDetailSchema).required().messages({
-      "any.required": "Vehicle details are required for this role",
-      "array.base": "Vehicle details must be an array",
-    }),
-    otherwise: Joi.forbidden(),
+  businessDetails: Joi.any().custom((value, helpers) => {
+    const { role, subRoles } = helpers?.state?.ancestors?.[0] || {};
+    if (isUserType(role, subRoles)) {
+      if (!Array.isArray(value) || value.length === 0) {
+        return helpers.message("Business details are required for USER-type roles");
+      }
+      const { error } = Joi.array().items(businessDetailSchema).validate(value);
+      if (error) return helpers.message("Invalid business detail");
+    }
+    return value;
+  }),
+
+  vehicleDetails: Joi.any().custom((value, helpers) => {
+    const { role, subRoles } = helpers?.state?.ancestors?.[0] || {};
+    if (isUserType(role, subRoles)) {
+      if (!Array.isArray(value) || value.length === 0) {
+        return helpers.message("Vehicle details are required for USER-type roles");
+      }
+      const { error } = Joi.array().items(vehicleDetailSchema).validate(value);
+      if (error) return helpers.message("Invalid vehicle detail");
+    }
+    return value;
   }),
 });
 
+// Login Schema
 const loginValidationSchema = Joi.object({
   phone: Joi.string()
     .pattern(/^[0-9]{10}$/)
@@ -115,4 +153,5 @@ const loginValidationSchema = Joi.object({
     "any.required": "Password is required",
   }),
 });
+
 module.exports = { authValidationSchema, loginValidationSchema };

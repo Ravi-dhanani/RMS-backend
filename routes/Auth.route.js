@@ -9,6 +9,7 @@ const {
   getUser,
   getPramukh,
   getSubAdmin,
+  getAllUser,
 } = require("../controller/Auth.controller");
 var router = express.Router();
 
@@ -22,5 +23,6 @@ router.get("/pramukh/list", getPramukh);
 router.post("/user/add", addUser);
 router.post("/user/update/:id", updateUser);
 router.post("/user/delete/:id", deleteUser);
+router.post("/user/by-height/:id", getAllUser);
 
 module.exports = router;

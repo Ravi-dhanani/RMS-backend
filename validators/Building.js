@@ -20,7 +20,7 @@ const buildingValidationSchema = Joi.object({
       }
       return value;
     })
-    .required(),
+    .optional(),
 });
 
 module.exports = { buildingValidationSchema };

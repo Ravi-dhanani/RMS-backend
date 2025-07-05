@@ -10,6 +10,7 @@ const cloudinary = require("../config/cloudinary");
 exports.register = async (req, res) => {
   try {
     const { error } = authValidationSchema.validate(req.body);
+    console.log(error)
     if (error) {
       return res
         .status(400)
@@ -23,6 +24,7 @@ exports.register = async (req, res) => {
       role,
       heaightID,
       profile_pic,
+      subRoles,
       familyMembers,
       businessDetails,
       vehicleDetails,
@@ -43,11 +45,12 @@ exports.register = async (req, res) => {
       password,
       role,
       heaightID,
+      subRoles,
       profile_pic: profile_pic
         ? {
-            id: profile_pic.id,
-            image: profile_pic.image,
-          }
+          id: profile_pic.id,
+          image: profile_pic.image,
+        }
         : null,
       familyMembers: familyMembers,
       businessDetails: businessDetails,
@@ -68,6 +71,26 @@ exports.register = async (req, res) => {
   }
 };
 
+exports.getAllUser = async (req, res) => {
+  try {
+    const { id } = req.params
+    const listOfUser = await authModel.find({
+      heaightID: id
+    });
+
+    if (!listOfUser) {
+      res.status(400).json({ message: "User Not found", status: false });
+    }
+
+    res.status(200).json({
+      message: "User list",
+      data: listOfUser,
+      status: true,
+    });
+  } catch (err) {
+    return res.status(500).json({ message: "Server Error", status: false });
+  }
+}
 exports.login = async (req, res) => {
   try {
     const { error } = loginValidationSchema.validate(req.body);

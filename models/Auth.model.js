@@ -46,26 +46,27 @@ const authModelSchema = new mongoose.Schema(
     password: { type: String, required: true },
     role: {
       type: String,
-      enum: ["USER", "ADMIN", "SUB_ADMIN", "HEAD", "PRAMUKH"],
+      enum: ["USER", "ADMIN"],
       required: true,
+    },
+    subRoles: {
+      type: [String],
+      enum: ["HEAD", "PRAMUKH"],
+      default: [],
     },
     profile_pic: {
       type: profilePicSchema,
       required: function () {
-        return (
-          this.role === "USER" ||
-          this.role === "PRAMUKH" ||
-          this.role === "HEAD"
-        );
+        return this.role === "USER" || this.subRoles.includes("HEAD") || this.subRoles.includes("PRAMUKH");
       },
     },
     heaightID: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Heaight",
-      required: function () {
-        return this.role === "USER";
-      },
+      require: false
     },
+
+
     familyMembers: [FamilyMemberSchema],
 
     businessDetails: [BusinessDetailSchema],
