@@ -2,13 +2,13 @@ var express = require("express");
 var cookieParser = require("cookie-parser");
 require("dotenv").config();
 const cors = require("cors");
-var Heaight = require("./routes/Heaight.route");
+var Heaight = require("./routes/Heaight.route.js");
 var Auth = require("./routes/Auth.route.js");
 var Building = require("./routes/Building.route.js");
 var Flour = require("./routes/Flour.route.js");
 var Flat = require("./routes/Flat.route.js");
 var Image = require("./routes/Image.route.js");
-const connectDB = require("./config/config");
+const connectDB = require("./config/config.js");
 
 var app = express();
 const PORT = process.env.PORT || 5353;
