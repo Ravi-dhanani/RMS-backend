@@ -10,10 +10,11 @@ const {
   getPramukh,
   getSubAdmin,
   getAllUser,
+  imagesAdd,
 } = require("../controller/Auth.controller");
+const upload = require("../middleware/upload");
 var router = express.Router();
 
-/* GET users listing. */
 router.post("/register", register);
 router.post("/login", login);
 router.get("/user/head/list", getUserHead);
@@ -24,5 +25,6 @@ router.post("/user/add", addUser);
 router.post("/user/update/:id", updateUser);
 router.post("/user/delete/:id", deleteUser);
 router.post("/user/by-height/:id", getAllUser);
+router.post("/upload", upload.array("images"), imagesAdd); // multiple images
 
 module.exports = router;

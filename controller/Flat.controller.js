@@ -123,3 +123,24 @@ exports.getFlatsByFlour = async (req, res) => {
     res.status(500).json({ message: "Server Error", status: false });
   }
 };
+
+exports.getFlatByUser = async (req, res) => {
+  try {
+    const flat = await FlatModel.findById(
+      {
+        _id: req.params.id,
+      },
+      {
+        currentMember: 1,
+      }
+    ).populate("currentMember");
+    if (!flat) return res.status(404).json({ message: "Flat not found" });
+    res.json({
+      message: "User Details fetched successfully",
+      data: flat,
+      status: true,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Server Error", status: false });
+  }
+};

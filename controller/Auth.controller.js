@@ -10,7 +10,7 @@ const cloudinary = require("../config/cloudinary");
 exports.register = async (req, res) => {
   try {
     const { error } = authValidationSchema.validate(req.body);
-    console.log(error)
+    console.log(error);
     if (error) {
       return res
         .status(400)
@@ -48,9 +48,9 @@ exports.register = async (req, res) => {
       subRoles,
       profile_pic: profile_pic
         ? {
-          id: profile_pic.id,
-          image: profile_pic.image,
-        }
+            id: profile_pic.id,
+            image: profile_pic.image,
+          }
         : null,
       familyMembers: familyMembers,
       businessDetails: businessDetails,
@@ -73,9 +73,9 @@ exports.register = async (req, res) => {
 
 exports.getAllUser = async (req, res) => {
   try {
-    const { id } = req.params
+    const { id } = req.params;
     const listOfUser = await authModel.find({
-      heaightID: id
+      heaightID: id,
     });
 
     if (!listOfUser) {
@@ -90,7 +90,7 @@ exports.getAllUser = async (req, res) => {
   } catch (err) {
     return res.status(500).json({ message: "Server Error", status: false });
   }
-}
+};
 exports.login = async (req, res) => {
   try {
     const { error } = loginValidationSchema.validate(req.body);
@@ -100,7 +100,9 @@ exports.login = async (req, res) => {
         .json({ message: error.details[0].message, status: false });
     }
     const { phone, password } = req.body;
+    console.log(phone, password);
     const user = await authModel.findOne({ phone: phone, password: password });
+    console.log(user);
     if (!user) {
       return res
         .status(400)
@@ -377,5 +379,39 @@ exports.updateProfilePic = async (req, res) => {
   } catch (err) {
     console.error("Update Profile Pic Error:", err);
     return res.status(500).json({ message: "Server Error", status: false });
+  }
+};
+
+exports.assignRole = async (req, res) => {};
+
+exports.imagesAdd = async (req, res) => {
+  try {
+    const files = req.files || [];
+
+    if (!files.length) {
+      return res.status(400).json({ message: "No image files received" });
+    }
+
+    const uploadedImages = [];
+
+    for (const file of files) {
+      const base64Image = `data:${file.mimetype};base64,${file.buffer.toString(
+        "base64"
+      )}`;
+
+      const result = await cloudinary.uploader.upload(base64Image, {
+        folder: "heights",
+      });
+
+      uploadedImages.push({ image: result.secure_url, id: result.public_id });
+    }
+
+    return res.status(200).json({
+      message: "Images uploaded successfully",
+      images: uploadedImages,
+    });
+  } catch (error) {
+    console.error("Upload error:", error);
+    return res.status(500).json({ message: "Upload failed", error });
   }
 };

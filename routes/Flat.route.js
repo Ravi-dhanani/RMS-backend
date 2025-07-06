@@ -8,6 +8,7 @@ const {
   deleteFlat,
   getFlatById,
   getFlatsByFlour,
+  getFlatByUser,
 } = require("../controller/Flat.controller");
 
 var router = express.Router();
@@ -18,6 +19,7 @@ router.get("/getAll/:id", authenticate, getFlats);
 router.post("/update/:id", authenticate, updateFlat);
 router.post("/delete/:id", authenticate, deleteFlat);
 router.get("/getSingle/:id", authenticate, getFlatById);
+router.get("/getFlatByUser/:id", authenticate, getFlatByUser);
 router.get("/by-floor/:id", authenticate, getFlatsByFlour);
 
 module.exports = router;

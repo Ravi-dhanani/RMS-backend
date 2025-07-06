@@ -25,12 +25,14 @@ const imageSchema = new mongoose.Schema(
   { _id: false }
 );
 
-
 const heaightSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     address: { type: String, required: true },
-    authorities: [authoritySchema],
+    city: { type: String, required: true },
+    pincode: { type: String, required: true },
+    admin: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    // authorities: [authoritySchema],
     images: [imageSchema],
   },
   {

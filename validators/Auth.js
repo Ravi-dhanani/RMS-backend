@@ -42,11 +42,8 @@ const profilePicSchema = Joi.object({
 });
 
 // Helper function to detect if the user is a "USER-type"
-const isUserType = (role, subRoles) => {
-  return (
-    role === "USER" ||
-    (Array.isArray(subRoles) && subRoles.some((r) => ["HEAD", "PRAMUKH"].includes(r)))
-  );
+const isUserType = (role) => {
+  return role === "USER";
 };
 
 // Main schema
@@ -64,28 +61,21 @@ const authValidationSchema = Joi.object({
     "string.min": "Password must be at least 6 characters",
     "any.required": "Password is required",
   }),
-  role: Joi.string()
-    .required()
-    .valid("USER", "ADMIN")
-    .messages({
-      "any.required": "Role is required",
-      "any.only": "Role must be USER or ADMIN",
-    }),
-  subRoles: Joi.array()
-    .items(Joi.string().valid("HEAD", "PRAMUKH"))
-    .default([]),
+  role: Joi.string().required().valid("USER", "ADMIN").messages({
+    "any.required": "Role is required",
+    "any.only": "Role must be USER or ADMIN",
+  }),
 
-  // Conditionally required based on role + subRoles
   profile_pic: Joi.any().custom((value, helpers) => {
-    const { role, subRoles } = helpers?.state?.ancestors?.[0] || {};
+    const { role } = helpers?.state?.ancestors?.[0] || {};
 
-    const isUserType =
-      role === "USER" ||
-      (Array.isArray(subRoles) && subRoles.some(r => ["PRAMUKH", "HEAD"].includes(r)));
+    const isUserType = role === "USER";
 
     if (isUserType) {
       if (!value) {
-        return helpers.error("any.required", { label: "Profile picture is required for this role" });
+        return helpers.error("any.required", {
+          label: "Profile picture is required for this role",
+        });
       }
 
       // Validate using the defined profilePicSchema
@@ -98,15 +88,15 @@ const authValidationSchema = Joi.object({
     return value;
   }),
 
-
   heaightID: objectIdValidator.optional(),
 
-
   familyMembers: Joi.any().custom((value, helpers) => {
-    const { role, subRoles } = helpers?.state?.ancestors?.[0] || {};
-    if (isUserType(role, subRoles)) {
+    const { role } = helpers?.state?.ancestors?.[0] || {};
+    if (isUserType(role)) {
       if (!Array.isArray(value) || value.length === 0) {
-        return helpers.message("Family members are required for USER-type roles");
+        return helpers.message(
+          "Family members are required for USER-type roles"
+        );
       }
       const { error } = Joi.array().items(familyMemberSchema).validate(value);
       if (error) return helpers.message("Invalid family member details");
@@ -115,10 +105,12 @@ const authValidationSchema = Joi.object({
   }),
 
   businessDetails: Joi.any().custom((value, helpers) => {
-    const { role, subRoles } = helpers?.state?.ancestors?.[0] || {};
-    if (isUserType(role, subRoles)) {
+    const { role } = helpers?.state?.ancestors?.[0] || {};
+    if (isUserType(role)) {
       if (!Array.isArray(value) || value.length === 0) {
-        return helpers.message("Business details are required for USER-type roles");
+        return helpers.message(
+          "Business details are required for USER-type roles"
+        );
       }
       const { error } = Joi.array().items(businessDetailSchema).validate(value);
       if (error) return helpers.message("Invalid business detail");
@@ -127,10 +119,12 @@ const authValidationSchema = Joi.object({
   }),
 
   vehicleDetails: Joi.any().custom((value, helpers) => {
-    const { role, subRoles } = helpers?.state?.ancestors?.[0] || {};
-    if (isUserType(role, subRoles)) {
+    const { role } = helpers?.state?.ancestors?.[0] || {};
+    if (isUserType(role)) {
       if (!Array.isArray(value) || value.length === 0) {
-        return helpers.message("Vehicle details are required for USER-type roles");
+        return helpers.message(
+          "Vehicle details are required for USER-type roles"
+        );
       }
       const { error } = Joi.array().items(vehicleDetailSchema).validate(value);
       if (error) return helpers.message("Invalid vehicle detail");

@@ -13,14 +13,14 @@ const buildingValidationSchema = Joi.object({
       return value;
     })
     .required(),
-  user: Joi.string()
-    .custom((value, helpers) => {
-      if (!mongoose.Types.ObjectId.isValid(value)) {
-        return helpers.message("Invalid User");
-      }
-      return value;
-    })
-    .optional(),
+  // user: Joi.string()
+  //   .custom((value, helpers) => {
+  //     if (!mongoose.Types.ObjectId.isValid(value)) {
+  //       return helpers.message("Invalid User");
+  //     }
+  //     return value;
+  //   })
+  //   .optional(),
 });
 
 module.exports = { buildingValidationSchema };

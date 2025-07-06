@@ -2,6 +2,7 @@ const { buildingValidationSchema } = require("../validators/Building");
 const BuildingModel = require("../models/Building.model");
 const HeaightModel = require("../models/Heaight.model");
 const getUserIdFromToken = require("../middleware/Auth");
+const authModel = require("../models/Auth.model");
 
 exports.createBuilding = async (req, res) => {
   try {
@@ -24,15 +25,7 @@ exports.getBuildings = async (req, res) => {
   try {
     const buildings = await BuildingModel.find({
       heaight: req.params.id,
-    })
-      .populate({
-        path: "heaight",
-        populate: {
-          path: "authorities.user",
-          model: "User",
-        },
-      })
-      .populate("user");
+    }).populate("heaight");
     res.json({
       message: "Buildings fetched successfully",
       data: buildings,
@@ -127,29 +120,41 @@ exports.getSocietyByBuilding = async (req, res) => {
       .limit(Number(limit));
 
     const totalBuildings = await BuildingModel.countDocuments(filter);
-    const heaights = await HeaightModel.findById(req.params.id).populate(
-      "authorities.user");
-    const imagesHeights = await HeaightModel.findById(req.params.id)
-      .select("images")
-      .lean();
-
+    const heaights = await HeaightModel.findById(req.params.id);
 
     if (!heaights)
       return res
         .status(404)
         .json({ message: "Heaight not found", status: false });
 
-    const flattenedAuthorities = heaights.authorities.map((auth) => {
-      const { _id, name, email, phone, role, profile_pic } = auth.user || {};
-      return {
-        _id: auth._id,
-        name,
-        email,
-        phone,
-        role,
-        profile_pic,
-      };
-    });
+    const imagesHeights = await HeaightModel.findById(req.params.id)
+      .select("images")
+      .lean();
+    const authorHeights = await authModel.find(
+      {
+        heaightID: req.params.id,
+      },
+      {
+        name: 1,
+        email: 1,
+        phone: 1,
+        profile_pic: 1,
+        role: 1,
+        _id: 1,
+        heaightID: 1,
+      }
+    );
+    // const flattenedAuthorities = heaights.authorities.map((auth) => {
+    //   const { _id, name, email, phone, role, profile_pic } = auth.user || {};
+    //   return {
+    //     _id: auth._id,
+    //     name,
+    //     email,
+    //     phone,
+    //     role,
+    //     profile_pic,
+    //   };
+    // });
     res.json({
       message: "Heaight fetched successfully",
       data: {
@@ -158,8 +163,8 @@ exports.getSocietyByBuilding = async (req, res) => {
         limit: Number(limit),
         result: {
           buildings,
-          authorities: flattenedAuthorities,
-          heightsImage: imagesHeights
+          authorities: authorHeights,
+          heightsImage: imagesHeights,
         },
       },
       status: true,
