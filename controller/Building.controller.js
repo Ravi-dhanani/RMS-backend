@@ -133,6 +133,7 @@ exports.getSocietyByBuilding = async (req, res) => {
     const authorHeights = await authModel.find(
       {
         heaightID: req.params.id,
+        role: "PRAMUKH",
       },
       {
         name: 1,
