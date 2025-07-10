@@ -441,3 +441,60 @@ exports.imagesAdd = async (req, res) => {
     return res.status(500).json({ message: "Upload failed", error });
   }
 };
+
+exports.updateProfile = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const {
+      name,
+      email,
+      phone,
+      password,
+      role,
+      heaightID,
+      profile_pic,
+      subRoles,
+      familyMembers,
+      businessDetails,
+      vehicleDetails,
+    } = req.body;
+
+    const user = await authModel.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found", status: false });
+    }
+
+    user.name = name ?? user.name;
+    user.email = email ?? user.email;
+    user.phone = phone ?? user.phone;
+    user.password = password ?? user.password;
+    user.role = role ?? user.role;
+    user.heaightID = heaightID ?? user.heaightID;
+    user.subRoles = subRoles ?? user.subRoles;
+    user.profile_pic = profile_pic
+      ? {
+          id: profile_pic.id,
+          image: profile_pic.image,
+        }
+      : user.profile_pic;
+    user.familyMembers = familyMembers ?? user.familyMembers;
+    user.businessDetails = businessDetails ?? user.businessDetails;
+    user.vehicleDetails = vehicleDetails ?? user.vehicleDetails;
+
+    await user.save();
+
+    res.status(200).json({
+      message: "Profile updated successfully",
+      data: user,
+      status: true,
+    });
+  } catch (err) {
+    console.error("Update Error:", err);
+    return res.status(500).json({
+      message: "Server Error",
+      error: err.message,
+      status: false,
+    });
+  }
+};

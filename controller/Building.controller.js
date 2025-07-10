@@ -106,22 +106,84 @@ exports.getBuildingByUserId = async (req, res) => {
   }
 };
 
+// exports.getSocietyByBuilding = async (req, res) => {
+//   try {
+//     const { page = 1, limit = 10, search = "" } = req.query;
+
+//     const filter = {
+//       heaight: req.params.id,
+//       buildingName: { $regex: search, $options: "i" },
+//     };
+
+//     const buildings = await BuildingModel.find(filter)
+//       .skip((page - 1) * limit)
+//       .limit(Number(limit));
+
+//     const totalBuildings = await BuildingModel.countDocuments(filter);
+//     const heaights = await HeaightModel.findById(req.params.id);
+
+//     if (!heaights)
+//       return res
+//         .status(404)
+//         .json({ message: "Heaight not found", status: false });
+
+//     const imagesHeights = await HeaightModel.findById(req.params.id)
+//       .select("images")
+//       .lean();
+//     const authorHeights = await authModel.find(
+//       {
+//         heaightID: req.params.id,
+//         role: "PRAMUKH",
+//       },
+//       {
+//         name: 1,
+//         email: 1,
+//         phone: 1,
+//         profile_pic: 1,
+//         role: 1,
+//         _id: 1,
+//         heaightID: 1,
+//       }
+//     );
+//     // const flattenedAuthorities = heaights.authorities.map((auth) => {
+//     //   const { _id, name, email, phone, role, profile_pic } = auth.user || {};
+//     //   return {
+//     //     _id: auth._id,
+//     //     name,
+//     //     email,
+//     //     phone,
+//     //     role,
+//     //     profile_pic,
+//     //   };
+//     // });
+//     res.json({
+//       message: "Heaight fetched successfully",
+//       data: {
+//         total: totalBuildings,
+//         page: Number(page),
+//         limit: Number(limit),
+//         result: {
+//           buildings,
+//           authorities: authorHeights,
+//           heightsImage: imagesHeights,
+//         },
+//       },
+//       status: true,
+//     });
+//   } catch (err) {
+//     console.error("Error:", err);
+//     res.status(500).json({ message: "Server Error", status: false });
+//   }
+// };
+
 exports.getSocietyByBuilding = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = "" } = req.query;
+    // Direct filter only by heaight ID (no search, no pagination)
+    const filter = { heaight: req.params.id };
 
-    const filter = {
-      heaight: req.params.id,
-      buildingName: { $regex: search, $options: "i" },
-    };
+    const buildings = await BuildingModel.find(filter);
 
-    const buildings = await BuildingModel.find(filter)
-      .skip((page - 1) * limit)
-      .limit(Number(limit));
-
-    const totalBuildings = await BuildingModel.countDocuments(filter);
     const heaights = await HeaightModel.findById(req.params.id);
-
     if (!heaights)
       return res
         .status(404)
@@ -130,6 +192,7 @@ exports.getSocietyByBuilding = async (req, res) => {
     const imagesHeights = await HeaightModel.findById(req.params.id)
       .select("images")
       .lean();
+
     const authorHeights = await authModel.find(
       {
         heaightID: req.params.id,
@@ -145,23 +208,10 @@ exports.getSocietyByBuilding = async (req, res) => {
         heaightID: 1,
       }
     );
-    // const flattenedAuthorities = heaights.authorities.map((auth) => {
-    //   const { _id, name, email, phone, role, profile_pic } = auth.user || {};
-    //   return {
-    //     _id: auth._id,
-    //     name,
-    //     email,
-    //     phone,
-    //     role,
-    //     profile_pic,
-    //   };
-    // });
+
     res.json({
       message: "Heaight fetched successfully",
       data: {
-        total: totalBuildings,
-        page: Number(page),
-        limit: Number(limit),
         result: {
           buildings,
           authorities: authorHeights,

@@ -11,6 +11,7 @@ const {
   getSubAdmin,
   getAllUser,
   imagesAdd,
+  updateProfile,
 } = require("../controller/Auth.controller");
 const upload = require("../middleware/upload");
 var router = express.Router();
@@ -26,5 +27,6 @@ router.post("/user/update/:id", updateUser);
 router.post("/user/delete/:id", deleteUser);
 router.post("/user/by-height/:id", getAllUser);
 router.post("/upload", upload.array("images"), imagesAdd); // multiple images
+router.post("/user/update/:id", updateProfile);
 
 module.exports = router;
