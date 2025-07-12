@@ -3,7 +3,7 @@ const {
   authValidationSchema,
   loginValidationSchema,
 } = require("../validators/Auth");
-const FamilyMember = require("../models/user/FamilyMember.model");
+const FamilyMember = require("../models/user/FamilyMemberDetail");
 const BusinessDetail = require("../models/user/BusinessDetail");
 const VehicleDetail = require("../models/user/VehicleDetail");
 const jwt = require("jsonwebtoken");
