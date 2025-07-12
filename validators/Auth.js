@@ -9,46 +9,9 @@ const objectIdValidator = Joi.string().custom((value, helpers) => {
   return value;
 }, "ObjectId Validator");
 
-const familyMemberSchema = Joi.object({
-  name: Joi.string().required(),
-  relation: Joi.string().required(),
-  age: Joi.number().optional(),
-  occupation: Joi.string().optional(),
-  contactNo: Joi.string().optional(),
-});
-
-const businessDetailSchema = Joi.object({
-  businessName: Joi.string().required(),
-  type: Joi.string().optional(),
-  ownerName: Joi.string().optional(),
-  address: Joi.string().optional(),
-  contactNo: Joi.string().optional(),
-  gstNo: Joi.string().optional(),
-});
-
-const vehicleDetailSchema = Joi.object({
-  vehicleType: Joi.string().required(),
-  vehicleNo: Joi.string().required(),
-});
-
-const profilePicSchema = Joi.object({
-  image: Joi.string().uri().required().messages({
-    "string.uri": "Image must be a valid URI",
-    "any.required": "Image URL is required",
-  }),
-  id: Joi.string().required().messages({
-    "any.required": "Image ID is required",
-  }),
-});
-
-// Helper function to detect if the user is a "USER-type"
-const isUserType = (role) => {
-  return role === "USER";
-};
-
-// Main schema
+// User (auth) validation schema
 const authValidationSchema = Joi.object({
-  name: Joi.string().optional(),
+  name: Joi.string().required(),
   email: Joi.string().email().optional(),
   phone: Joi.string()
     .pattern(/^[0-9]{10}$/)
@@ -61,76 +24,27 @@ const authValidationSchema = Joi.object({
     "string.min": "Password must be at least 6 characters",
     "any.required": "Password is required",
   }),
-  role: Joi.string().required().valid("USER", "ADMIN").messages({
-    "any.required": "Role is required",
-    "any.only": "Role must be USER or ADMIN",
-  }),
-
-  profile_pic: Joi.any().custom((value, helpers) => {
-    const { role } = helpers?.state?.ancestors?.[0] || {};
-
-    const isUserType = role === "USER";
-
-    if (isUserType) {
-      if (!value) {
-        return helpers.error("any.required", {
-          label: "Profile picture is required for this role",
-        });
-      }
-
-      // Validate using the defined profilePicSchema
-      const { error } = profilePicSchema.validate(value, { abortEarly: true });
-      if (error) {
-        return helpers.message(error.details[0].message);
-      }
-    }
-
-    return value;
-  }),
+  role: Joi.string()
+    .required()
+    .valid("USER", "ADMIN", "PRAMUKH", "MAIN_PRAMUKH")
+    .messages({
+      "any.required": "Role is required",
+      "any.only": "Invalid role provided",
+    }),
+  profile_pic: Joi.object({
+    image: Joi.string().uri().required().messages({
+      "string.uri": "Image must be a valid URI",
+      "any.required": "Image URL is required",
+    }),
+    id: Joi.string().required().messages({
+      "any.required": "Image ID is required",
+    }),
+  }).optional(),
 
   heaightID: objectIdValidator.optional(),
-
-  familyMembers: Joi.any().custom((value, helpers) => {
-    const { role } = helpers?.state?.ancestors?.[0] || {};
-    if (isUserType(role)) {
-      if (!Array.isArray(value) || value.length === 0) {
-        return helpers.message(
-          "Family members are required for USER-type roles"
-        );
-      }
-      const { error } = Joi.array().items(familyMemberSchema).validate(value);
-      if (error) return helpers.message("Invalid family member details");
-    }
-    return value;
-  }),
-
-  businessDetails: Joi.any().custom((value, helpers) => {
-    const { role } = helpers?.state?.ancestors?.[0] || {};
-    if (isUserType(role)) {
-      if (!Array.isArray(value) || value.length === 0) {
-        return helpers.message(
-          "Business details are required for USER-type roles"
-        );
-      }
-      const { error } = Joi.array().items(businessDetailSchema).validate(value);
-      if (error) return helpers.message("Invalid business detail");
-    }
-    return value;
-  }),
-
-  vehicleDetails: Joi.any().custom((value, helpers) => {
-    const { role } = helpers?.state?.ancestors?.[0] || {};
-    if (isUserType(role)) {
-      if (!Array.isArray(value) || value.length === 0) {
-        return helpers.message(
-          "Vehicle details are required for USER-type roles"
-        );
-      }
-      const { error } = Joi.array().items(vehicleDetailSchema).validate(value);
-      if (error) return helpers.message("Invalid vehicle detail");
-    }
-    return value;
-  }),
+  familyMembers: Joi.array().optional(), // just to ensure it's an array
+  businessDetails: Joi.array().optional(),
+  vehicleDetails: Joi.array().optional(),
 });
 
 // Login Schema

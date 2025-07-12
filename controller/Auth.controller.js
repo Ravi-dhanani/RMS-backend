@@ -3,19 +3,30 @@ const {
   authValidationSchema,
   loginValidationSchema,
 } = require("../validators/Auth");
-
+const FamilyMember = require("../models/user/FamilyMember.model");
+const BusinessDetail = require("../models/user/BusinessDetail");
+const VehicleDetail = require("../models/user/VehicleDetail");
 const jwt = require("jsonwebtoken");
+const { familyMembersArraySchema } = require("../validators/Family");
+const { businessDetailsArraySchema } = require("../validators/Business");
+const { vehicleDetailsArraySchema } = require("../validators/Vehicle");
 const cloudinary = require("../config/cloudinary");
+const mongoose = require("mongoose");
 
 exports.register = async (req, res) => {
+  const session = await authModel.startSession();
+  session.startTransaction();
+
   try {
-    const { error } = authValidationSchema.validate(req.body);
-    console.log(error);
-    if (error) {
-      return res
-        .status(400)
-        .json({ message: error.details[0].message, status: false });
+    // 1. Validate main user data
+    const { error: authError } = authValidationSchema.validate(req.body);
+    if (authError) {
+      return res.status(400).json({
+        message: authError.details[0].message,
+        status: false,
+      });
     }
+
     const {
       name,
       email,
@@ -25,45 +36,111 @@ exports.register = async (req, res) => {
       heaightID,
       profile_pic,
       subRoles,
-      familyMembers,
-      businessDetails,
-      vehicleDetails,
+      familyMembers = [],
+      businessDetails = [],
+      vehicleDetails = [],
     } = req.body;
 
-    const userExists = await authModel.findOne({ phone });
+    // 2. Validate user-specific data
+    if (role === "USER") {
+      const { error: familyError } =
+        familyMembersArraySchema.validate(familyMembers);
+      console.log(familyError);
+      if (familyError) {
+        return res.status(400).json({
+          message: "Invalid family member details",
+          details: familyError.details,
+          status: false,
+        });
+      }
 
-    if (userExists) {
-      return res
-        .status(400)
-        .json({ message: "Phone Number already exists", status: false });
+      const { error: businessError } =
+        businessDetailsArraySchema.validate(businessDetails);
+      if (businessError) {
+        return res.status(400).json({
+          message: "Invalid business details",
+          details: businessError.details,
+          status: false,
+        });
+      }
+
+      const { error: vehicleError } =
+        vehicleDetailsArraySchema.validate(vehicleDetails);
+      if (vehicleError) {
+        return res.status(400).json({
+          message: "Invalid vehicle details",
+          details: vehicleError.details,
+          status: false,
+        });
+      }
     }
 
-    const newUser = await authModel.create({
-      name,
-      email,
-      phone,
-      password,
-      role,
-      heaightID,
-      subRoles,
-      profile_pic: profile_pic
-        ? {
-            id: profile_pic.id,
-            image: profile_pic.image,
-          }
-        : null,
-      familyMembers: familyMembers,
-      businessDetails: businessDetails,
-      vehicleDetails: vehicleDetails,
-    });
+    // 3. Check duplicate phone number
+    const userExists = await authModel.findOne({ phone });
+    if (userExists) {
+      return res.status(400).json({
+        message: "Phone Number already exists",
+        status: false,
+      });
+    }
+
+    // 4. Create user
+    const newUser = await authModel.create(
+      [
+        {
+          name,
+          email,
+          phone,
+          password,
+          role,
+          heaightID,
+          subRoles,
+          profile_pic: profile_pic
+            ? { id: profile_pic.id, image: profile_pic.image }
+            : null,
+        },
+      ],
+      { session }
+    );
+
+    const userId = newUser[0]._id;
+
+    // 5. Create related documents
+    if (familyMembers.length) {
+      const familyWithUser = familyMembers.map((item) => ({ ...item, userId }));
+      await FamilyMember.insertMany(familyWithUser, { session });
+    }
+
+    if (businessDetails.length) {
+      const businessWithUser = businessDetails.map((item) => ({
+        ...item,
+        userId,
+      }));
+      await BusinessDetail.insertMany(businessWithUser, { session });
+    }
+
+    if (vehicleDetails.length) {
+      const vehicleWithUser = vehicleDetails.map((item) => ({
+        ...item,
+        userId,
+      }));
+      await VehicleDetail.insertMany(vehicleWithUser, { session });
+    }
+
+    // 6. Commit transaction
+    await session.commitTransaction();
+    session.endSession();
 
     res.status(201).json({
       message: "User registered successfully",
-      data: newUser,
+      data: newUser[0],
       status: true,
     });
   } catch (err) {
-    return res.status(500).json({
+    await session.abortTransaction();
+    session.endSession();
+
+    res.status(500).json({
       message: "Server Error",
       error: err.message,
       status: false,
@@ -78,41 +155,141 @@ exports.getAllUser = async (req, res) => {
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const query = {
-      heaightID: id,
-    };
+    const matchStage = { heaightID: new mongoose.Types.ObjectId(id) };
 
-    if (search) {
-      const searchRegex = { $regex: search, $options: "i" };
-      query.$or = [
-        { name: searchRegex },
-        { email: searchRegex },
-        { phone: searchRegex },
-        { role: searchRegex },
-        { "businessDetails.businessName": searchRegex },
-        { "businessDetails.ownerName": searchRegex },
-        { "businessDetails.contactNo": searchRegex },
-        { "businessDetails.gstNo": searchRegex },
-        { "vehicleDetails.vehicleNo": searchRegex },
-        { "vehicleDetails.vehicleType": searchRegex },
-      ];
-    }
+    const searchRegex = new RegExp(search, "i");
 
-    const [listOfUser, totalCount] = await Promise.all([
-      authModel.find(query).skip(skip).limit(parseInt(limit)),
-      authModel.countDocuments(query),
+    const pipeline = [
+      { $match: matchStage },
+
+      // Lookup flat
+      {
+        $lookup: {
+          from: "flats",
+          localField: "_id",
+          foreignField: "currentMember",
+          as: "flatInfo",
+        },
+      },
+      {
+        $unwind: {
+          path: "$flatInfo",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // Lookup businessDetails
+      {
+        $lookup: {
+          from: "businessdetails",
+          localField: "_id",
+          foreignField: "userId",
+          as: "businessDetails",
+        },
+      },
+
+      // Lookup vehicleDetails
+      {
+        $lookup: {
+          from: "vehicledetails",
+          localField: "_id",
+          foreignField: "userId",
+          as: "vehicleDetails",
+        },
+      },
+
+      // Optional: Filter by search across multiple joined fields
+      ...(search
+        ? [
+            {
+              $match: {
+                $or: [
+                  { name: { $regex: searchRegex } },
+                  { phone: { $regex: searchRegex } },
+                  { "businessDetails.type": { $regex: searchRegex } },
+                  { "vehicleDetails.vehicleNo": { $regex: searchRegex } },
+                  { "flatInfo.flatName": { $regex: searchRegex } },
+                ],
+              },
+            },
+          ]
+        : []),
+
+      // Select only required fields
+      {
+        $project: {
+          name: 1,
+          phone: 1,
+          profile_pic: 1,
+          flatId: "$flatInfo._id",
+          flatName: "$flatInfo.flatName",
+        },
+      },
+
+      // Pagination
+      { $skip: skip },
+      { $limit: parseInt(limit) },
+    ];
+
+    const [data, totalCountArr] = await Promise.all([
+      authModel.aggregate(pipeline),
+      authModel.aggregate([
+        { $match: matchStage },
+        ...(search
+          ? [
+              {
+                $lookup: {
+                  from: "flats",
+                  localField: "_id",
+                  foreignField: "currentMember",
+                  as: "flatInfo",
+                },
+              },
+              {
+                $lookup: {
+                  from: "businessdetails",
+                  localField: "_id",
+                  foreignField: "userId",
+                  as: "businessDetails",
+                },
+              },
+              {
+                $lookup: {
+                  from: "vehicledetails",
+                  localField: "_id",
+                  foreignField: "userId",
+                  as: "vehicleDetails",
+                },
+              },
+              {
+                $match: {
+                  $or: [
+                    { name: { $regex: searchRegex } },
+                    { phone: { $regex: searchRegex } },
+                    { "businessDetails.type": { $regex: searchRegex } },
+                    { "vehicleDetails.vehicleNo": { $regex: searchRegex } },
+                    { "flatInfo.flatName": { $regex: searchRegex } },
+                  ],
+                },
+              },
+            ]
+          : []),
+        { $count: "total" },
+      ]),
     ]);
+
+    const totalCount = totalCountArr[0]?.total || 0;
 
     res.status(200).json({
       message: "User list",
-      data: listOfUser,
+      data,
       currentPage: parseInt(page),
       totalPages: Math.ceil(totalCount / limit),
       totalUsers: totalCount,
       status: true,
     });
   } catch (err) {
-    console.error(err);
+    console.error("Error in getAllUser:", err);
     return res.status(500).json({ message: "Server Error", status: false });
   }
 };
@@ -167,181 +344,7 @@ exports.getUserHead = async (req, res) => {
   }
 };
 
-exports.getSubAdmin = async (req, res) => {
-  try {
-    const listOfUser = await authModel
-      .find({
-        role: "SUB_ADMIN",
-      })
-      .populate("heaightID");
-
-    if (!listOfUser) {
-      res.status(400).json({ message: "Sub Admin Not found", status: false });
-    }
-
-    res.status(200).json({
-      message: "Sub Admin list",
-      data: listOfUser,
-      status: true,
-    });
-  } catch (err) {
-    return res.status(500).json({ message: "Server Error", status: false });
-  }
-};
 //pramukh and user
-exports.getPramukh = async (req, res) => {
-  try {
-    const listOfUser = await authModel
-      .find({
-        role: "PRAMUKH",
-      })
-      .populate("heaightID");
-
-    if (!listOfUser) {
-      res.status(400).json({ message: "PRAMUKH Not found", status: false });
-    }
-
-    res.status(200).json({
-      message: "PRAMUKH list",
-      data: listOfUser,
-      status: true,
-    });
-  } catch (err) {
-    return res.status(500).json({ message: "Server Error", status: false });
-  }
-};
-exports.getUser = async (req, res) => {
-  try {
-    const listOfUser = await authModel
-      .find({
-        role: { $in: ["PRAMUKH", "USER"] },
-      })
-      .populate("heaightID");
-
-    if (!listOfUser) {
-      res.status(400).json({ message: "User Not found", status: false });
-    }
-
-    res.status(200).json({
-      message: "User list",
-      data: listOfUser,
-      status: true,
-    });
-  } catch (err) {
-    return res.status(500).json({ message: "Server Error", status: false });
-  }
-};
-
-exports.addUser = async (req, res) => {
-  try {
-    const { error } = authValidationSchema.validate(req.body);
-
-    if (error) {
-      return res
-        .status(400)
-        .json({ message: error.details[0].message, status: false });
-    }
-
-    const {
-      name,
-      email,
-      phone,
-      password,
-      role,
-      heaightID,
-      profile_pic,
-      familyMembers,
-      businessDetails,
-      vehicleDetails,
-    } = req.body;
-
-    const userExists = await authModel.findOne({ phone });
-
-    if (userExists) {
-      return res
-        .status(400)
-        .json({ message: "Phone Number already exists", status: false });
-    }
-    const newUser = await authModel.create({
-      name,
-      email,
-      phone,
-      password,
-      role,
-      heaightID,
-      profile_pic,
-      familyMembers,
-      businessDetails,
-      vehicleDetails,
-    });
-    res.status(201).json({
-      message: "Data added successfully",
-      data: newUser,
-      status: true,
-    });
-  } catch (err) {
-    return res.status(500).json({ message: err.errmsg, status: false });
-  }
-};
-
-exports.updateUser = async (req, res) => {
-  try {
-    const {
-      name,
-      email,
-      phone,
-      password,
-      role,
-      heaightID,
-      profile_pic,
-      familyMembers,
-      businessDetails,
-      vehicleDetails,
-    } = req.body;
-    const updatedUser = await authModel.findByIdAndUpdate(
-      req.params.id,
-      {
-        name,
-        email,
-        phone,
-        password,
-        role,
-        heaightID,
-        profile_pic,
-        familyMembers,
-        businessDetails,
-        vehicleDetails,
-      },
-      { new: true }
-    );
-    if (!updatedUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-    res.status(200).json({
-      message: "Data updated successfully",
-      data: updatedUser,
-      status: true,
-    });
-  } catch (err) {
-    return res.status(500).json({ message: "Server Error", status: false });
-  }
-};
-
-exports.deleteUser = async (req, res) => {
-  try {
-    const deletedUser = await authModel.findByIdAndDelete(req.params.id);
-    if (!deletedUser) {
-      return res.status(404).json({ message: "Pramukh not found" });
-    }
-    res.status(200).json({
-      message: "Pramukh deleted successfully",
-      status: true,
-    });
-  } catch (err) {
-    console.error("Delete Error:", err);
-    return res.status(500).json({ message: "Server Error", status: false });
-  }
-};
 
 exports.getProfilePic = async (req, res) => {
   try {
@@ -408,8 +411,6 @@ exports.updateProfilePic = async (req, res) => {
   }
 };
 
-exports.assignRole = async (req, res) => {};
-
 exports.imagesAdd = async (req, res) => {
   try {
     const files = req.files || [];
@@ -443,6 +444,9 @@ exports.imagesAdd = async (req, res) => {
 };
 
 exports.updateProfile = async (req, res) => {
+  const session = await authModel.startSession();
+  session.startTransaction();
+
   try {
     const { id } = req.params;
 
@@ -454,7 +458,6 @@ exports.updateProfile = async (req, res) => {
       role,
       heaightID,
       profile_pic,
-      subRoles,
       familyMembers,
       businessDetails,
       vehicleDetails,
@@ -465,24 +468,65 @@ exports.updateProfile = async (req, res) => {
       return res.status(404).json({ message: "User not found", status: false });
     }
 
-    user.name = name ?? user.name;
-    user.email = email ?? user.email;
-    user.phone = phone ?? user.phone;
-    user.password = password ?? user.password;
-    user.role = role ?? user.role;
-    user.heaightID = heaightID ?? user.heaightID;
-    user.subRoles = subRoles ?? user.subRoles;
-    user.profile_pic = profile_pic
-      ? {
-          id: profile_pic.id,
-          image: profile_pic.image,
-        }
-      : user.profile_pic;
-    user.familyMembers = familyMembers ?? user.familyMembers;
-    user.businessDetails = businessDetails ?? user.businessDetails;
-    user.vehicleDetails = vehicleDetails ?? user.vehicleDetails;
+    if (phone && phone !== user.phone) {
+      const existingPhoneUser = await authModel.findOne({ phone });
 
-    await user.save();
+      // Check if phone is used by another user (not the current user)
+      if (existingPhoneUser && existingPhoneUser._id.toString() !== id) {
+        return res.status(400).json({
+          message: "Phone number already in use by another user",
+          status: false,
+        });
+      }
+
+      // If phone is not used or it's the same user, allow update
+      user.phone = phone;
+    }
+    // 1. Update user base fields
+    if (name) user.name = name;
+    if (email) user.email = email;
+    if (role) user.role = role;
+    if (heaightID) user.heaightID = heaightID;
+    if (password) user.password = password;
+
+    if (profile_pic) {
+      user.profile_pic = {
+        id: profile_pic.id,
+        image: profile_pic.image,
+      };
+    }
+
+    await user.save({ session });
+
+    const userId = user._id;
+
+    // 2. Replace related collections (if provided)
+    if (Array.isArray(familyMembers)) {
+      await FamilyMember.deleteMany({ userId }, { session });
+      const familyWithUser = familyMembers.map((item) => ({ ...item, userId }));
+      await FamilyMember.insertMany(familyWithUser, { session });
+    }
+
+    if (Array.isArray(businessDetails)) {
+      await BusinessDetail.deleteMany({ userId }, { session });
+      const businessWithUser = businessDetails.map((item) => ({
+        ...item,
+        userId,
+      }));
+      await BusinessDetail.insertMany(businessWithUser, { session });
+    }
+
+    if (Array.isArray(vehicleDetails)) {
+      await VehicleDetail.deleteMany({ userId }, { session });
+      const vehicleWithUser = vehicleDetails.map((item) => ({
+        ...item,
+        userId,
+      }));
+      await VehicleDetail.insertMany(vehicleWithUser, { session });
+    }
+
+    await session.commitTransaction();
+    session.endSession();
 
     res.status(200).json({
       message: "Profile updated successfully",
@@ -490,6 +534,9 @@ exports.updateProfile = async (req, res) => {
       status: true,
     });
   } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+
     console.error("Update Error:", err);
     return res.status(500).json({
       message: "Server Error",
