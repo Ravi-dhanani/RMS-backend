@@ -73,7 +73,7 @@ exports.createMaintenance = async (req, res) => {
         const payments = flats.map((flat) => ({
           maintenanceID: maintenance._id,
           flatID: flat._id,
-          status: "Unpaid",
+          status: "Pending",
         }));
         allPayments.push(...payments);
 
@@ -135,7 +135,7 @@ exports.getMaintenance = async (req, res) => {
 
           floor.flats = floor.flats.map((flat) => ({
             ...flat,
-            paymentStatus: flat.isBooked === "Booked" ? "Unpaid" : "UnBooked",
+            paymentStatus: flat.isBooked === "Booked" ? "Pending" : "Complete",
           }));
         }
         maintenance.floors = floors;
@@ -150,5 +150,128 @@ exports.getMaintenance = async (req, res) => {
   } catch (error) {
     console.error("Error fetching maintenance:", error);
     res.status(500).json({ status: false, message: "Server error" });
+  }
+};
+
+exports.getUserMaintenance = async (req, res) => {
+  try {
+    const { userID } = req.params;
+    const { status } = req.query;
+    console.log(userID);
+    const user = await User.findById(userID)
+      .populate("flatID", "flatName flourId")
+      .populate("buildingID", "buildingName")
+      .lean();
+
+    if (!user) {
+      return res.status(404).json({ status: false, message: "User not found" });
+    }
+
+    if (!user.flatID) {
+      return res
+        .status(404)
+        .json({ status: false, message: "User has no flat assigned" });
+    }
+
+    // ✅ Find all maintenance for user's building
+    const maintenances = await Maintenance.find({ buildingID: user.buildingID })
+      .populate("buildingID", "buildingName")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const maintenanceWithPaymentStatus = await Promise.all(
+      maintenances.map(async (maintenance) => {
+        const payment = await MaintenancePayment.findOne({
+          maintenanceID: maintenance._id,
+          flatID: user.flatID._id,
+        }).lean();
+
+        const paymentStatus = payment ? payment.status : "Pending";
+
+        return {
+          ...maintenance,
+          paymentStatus,
+          flat: {
+            flatID: user.flatID._id,
+            flatName: user.flatID.flatName,
+          },
+        };
+      })
+    );
+
+    let filteredData = maintenanceWithPaymentStatus;
+    if (status) {
+      filteredData = maintenanceWithPaymentStatus.filter(
+        (item) => item.paymentStatus.toLowerCase() === status.toLowerCase()
+      );
+    }
+
+    res.status(200).json({
+      status: true,
+      message: "User maintenance fetched successfully",
+      data: filteredData,
+    });
+  } catch (error) {
+    console.error("Error fetching user maintenance:", error);
+    res.status(500).json({ status: false, message: "Server error" });
+  }
+};
+
+exports.updatePaymentStatus = async (req, res) => {
+  try {
+    const { flatID, maintenanceID, paymentType, status } = req.body;
+    const id = await getUserIdFromToken(req.headers.authorization);
+
+    const user = await User.findById(id);
+    console.log(user);
+    if (!["MAIN_PRAMUKH", "PRAMUKH"].includes(user.role)) {
+      return res.status(403).json({
+        status: false,
+        message: `You are not allowed (${user.role}) to update payment status`,
+      });
+    }
+
+    // Input validation
+    if (!flatID || !maintenanceID) {
+      return res.status(400).json({
+        status: false,
+        message: "flatID and maintenanceID are required",
+      });
+    }
+
+    if (!["Pending", "Complete"].includes(status)) {
+      return res
+        .status(400)
+        .json({ status: false, message: "Invalid status value" });
+    }
+
+    if (status === "Complete" && !["Cash", "Online"].includes(paymentType)) {
+      return res.status(400).json({
+        status: false,
+        message: "Payment type is required when status is Paid",
+      });
+    }
+
+    const payment = await MaintenancePayment.findOne({ flatID, maintenanceID });
+
+    if (!payment) {
+      return res
+        .status(404)
+        .json({ status: false, message: "Payment record not found" });
+    }
+
+    payment.status = status;
+    payment.paymentType = status === "Complete" ? paymentType : null;
+
+    await payment.save();
+
+    return res.status(200).json({
+      status: true,
+      message: "Payment status updated successfully",
+      data: payment,
+    });
+  } catch (error) {
+    console.error("Error updating payment status:", error);
+    return res.status(500).json({ status: false, message: "Server error" });
   }
 };
