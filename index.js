@@ -7,6 +7,7 @@ var Auth = require("./routes/Auth.route.js");
 var Building = require("./routes/Building.route.js");
 var Flour = require("./routes/Flour.route.js");
 var Flat = require("./routes/Flat.route.js");
+var Notice = require("./routes/Notice.route.js");
 var Image = require("./routes/Image.route.js");
 var Maintenance = require("./routes/Maintenance.route.js");
 const connectDB = require("./config/config.js");
@@ -26,6 +27,7 @@ app.use("/api/Building", Building);
 app.use("/api/Flour", Flour);
 app.use("/api/Flat", Flat);
 app.use("/api/Maintenance", Maintenance);
+app.use("/api/Notice", Notice);
 app.use("/api/assets", Image);
 
 app.get("/", (req, res) => {

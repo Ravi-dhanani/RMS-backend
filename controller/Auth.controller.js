@@ -51,7 +51,6 @@ exports.register = async (req, res) => {
     if (role === "USER") {
       const { error: familyError } =
         familyMembersArraySchema.validate(familyMembers);
-      console.log(familyError);
       if (familyError) {
         return res.status(400).json({
           message: "Invalid family member details",
@@ -336,7 +335,6 @@ exports.login = async (req, res) => {
       status: true,
     });
   } catch (err) {
-    console.log(err);
     return res.status(500).json({ message: "Server Error", status: false });
   }
 };
