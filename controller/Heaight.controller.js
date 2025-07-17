@@ -1,8 +1,8 @@
 const { heaightValidationSchema } = require("../validators/Heaight");
 const HeaightModel = require("../models/Heaight.model");
 const BuildingModel = require("../models/Building.model");
-const cloudinary = require("../config/cloudinary");
-const mongoose = require("mongoose");
+
+const getUserIdFromToken = require("../middleware/Auth");
 exports.createHeaight = async (req, res) => {
   try {
     const { error } = heaightValidationSchema.validate(req.body);
@@ -20,7 +20,6 @@ exports.createHeaight = async (req, res) => {
       images: req.body.images,
       city: req.body.city,
       pincode: req.body.pincode,
-      admin: req.body.admin,
     });
 
     res.status(201).json({

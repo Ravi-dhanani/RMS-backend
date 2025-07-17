@@ -1,4 +1,6 @@
 const authModel = require("../models/Auth.model");
+const moment = require("moment");
+const Flat = require("../models/Flat.model");
 const {
   authValidationSchema,
   loginValidationSchema,
@@ -12,6 +14,7 @@ const { businessDetailsArraySchema } = require("../validators/Business");
 const { vehicleDetailsArraySchema } = require("../validators/Vehicle");
 const cloudinary = require("../config/cloudinary");
 const mongoose = require("mongoose");
+const Maintenance = require("../models/Maintenance.model");
 
 exports.register = async (req, res) => {
   const session = await authModel.startSession();
@@ -34,6 +37,9 @@ exports.register = async (req, res) => {
       password,
       role,
       heaightID,
+      buildingID,
+      flourID,
+      flatID,
       profile_pic,
       subRoles,
       familyMembers = [],
@@ -94,6 +100,9 @@ exports.register = async (req, res) => {
           password,
           role,
           heaightID,
+          buildingID,
+          flourID,
+          flatID,
           subRoles,
           profile_pic: profile_pic
             ? { id: profile_pic.id, image: profile_pic.image }
@@ -104,7 +113,13 @@ exports.register = async (req, res) => {
     );
 
     const userId = newUser[0]._id;
-
+    if (flatID) {
+      await Flat.findByIdAndUpdate(
+        flatID,
+        { currentMember: userId, isBooked: "Booked" },
+        { session }
+      );
+    }
     // 5. Create related documents
     if (familyMembers.length) {
       const familyWithUser = familyMembers.map((item) => ({ ...item, userId }));
@@ -127,7 +142,6 @@ exports.register = async (req, res) => {
       await VehicleDetail.insertMany(vehicleWithUser, { session });
     }
 
-    // 6. Commit transaction
     await session.commitTransaction();
     session.endSession();
 
@@ -151,18 +165,44 @@ exports.register = async (req, res) => {
 exports.getAllUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { page = 1, limit = 10, search = "" } = req.query;
+    const {
+      page = 1,
+      limit = 10,
+      name = "",
+      phone = "",
+      flat = "",
+      vehicleNo = "",
+      businessCategory = "",
+    } = req.query;
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const matchStage = { heaightID: new mongoose.Types.ObjectId(id) };
+    const flatAssignedFilter = { "flatInfo._id": { $ne: null } };
 
-    const searchRegex = new RegExp(search, "i");
+    // Dynamic Manual Search Filter
+    const searchConditions = [];
+
+    if (name)
+      searchConditions.push({ name: { $regex: new RegExp(name, "i") } });
+    if (phone)
+      searchConditions.push({ phone: { $regex: new RegExp(phone, "i") } });
+    if (flat)
+      searchConditions.push({
+        "flatInfo.flatName": { $regex: new RegExp(flat, "i") },
+      });
+    if (vehicleNo)
+      searchConditions.push({
+        "vehicleDetails.vehicleNo": { $regex: new RegExp(vehicleNo, "i") },
+      });
+    if (businessCategory)
+      searchConditions.push({
+        "businessDetails.type": { $regex: new RegExp(businessCategory, "i") },
+      });
 
     const pipeline = [
       { $match: matchStage },
 
-      // Lookup flat
       {
         $lookup: {
           from: "flats",
@@ -171,14 +211,8 @@ exports.getAllUser = async (req, res) => {
           as: "flatInfo",
         },
       },
-      {
-        $unwind: {
-          path: "$flatInfo",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
+      { $unwind: { path: "$flatInfo", preserveNullAndEmptyArrays: true } },
 
-      // Lookup businessDetails
       {
         $lookup: {
           from: "businessdetails",
@@ -187,8 +221,6 @@ exports.getAllUser = async (req, res) => {
           as: "businessDetails",
         },
       },
-
-      // Lookup vehicleDetails
       {
         $lookup: {
           from: "vehicledetails",
@@ -198,24 +230,12 @@ exports.getAllUser = async (req, res) => {
         },
       },
 
-      // Optional: Filter by search across multiple joined fields
-      ...(search
-        ? [
-            {
-              $match: {
-                $or: [
-                  { name: { $regex: searchRegex } },
-                  { phone: { $regex: searchRegex } },
-                  { "businessDetails.type": { $regex: searchRegex } },
-                  { "vehicleDetails.vehicleNo": { $regex: searchRegex } },
-                  { "flatInfo.flatName": { $regex: searchRegex } },
-                ],
-              },
-            },
-          ]
+      { $match: flatAssignedFilter },
+
+      ...(searchConditions.length > 0
+        ? [{ $match: { $and: searchConditions } }]
         : []),
 
-      // Select only required fields
       {
         $project: {
           name: 1,
@@ -223,10 +243,11 @@ exports.getAllUser = async (req, res) => {
           profile_pic: 1,
           flatId: "$flatInfo._id",
           flatName: "$flatInfo.flatName",
+          businessType: { $arrayElemAt: ["$businessDetails.type", 0] },
+          vehicleNo: { $arrayElemAt: ["$vehicleDetails.vehicleNo", 0] },
         },
       },
 
-      // Pagination
       { $skip: skip },
       { $limit: parseInt(limit) },
     ];
@@ -235,44 +256,34 @@ exports.getAllUser = async (req, res) => {
       authModel.aggregate(pipeline),
       authModel.aggregate([
         { $match: matchStage },
-        ...(search
-          ? [
-              {
-                $lookup: {
-                  from: "flats",
-                  localField: "_id",
-                  foreignField: "currentMember",
-                  as: "flatInfo",
-                },
-              },
-              {
-                $lookup: {
-                  from: "businessdetails",
-                  localField: "_id",
-                  foreignField: "userId",
-                  as: "businessDetails",
-                },
-              },
-              {
-                $lookup: {
-                  from: "vehicledetails",
-                  localField: "_id",
-                  foreignField: "userId",
-                  as: "vehicleDetails",
-                },
-              },
-              {
-                $match: {
-                  $or: [
-                    { name: { $regex: searchRegex } },
-                    { phone: { $regex: searchRegex } },
-                    { "businessDetails.type": { $regex: searchRegex } },
-                    { "vehicleDetails.vehicleNo": { $regex: searchRegex } },
-                    { "flatInfo.flatName": { $regex: searchRegex } },
-                  ],
-                },
-              },
-            ]
+        {
+          $lookup: {
+            from: "flats",
+            localField: "_id",
+            foreignField: "currentMember",
+            as: "flatInfo",
+          },
+        },
+        { $unwind: { path: "$flatInfo", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "businessdetails",
+            localField: "_id",
+            foreignField: "userId",
+            as: "businessDetails",
+          },
+        },
+        {
+          $lookup: {
+            from: "vehicledetails",
+            localField: "_id",
+            foreignField: "userId",
+            as: "vehicleDetails",
+          },
+        },
+        { $match: flatAssignedFilter },
+        ...(searchConditions.length > 0
+          ? [{ $match: { $and: searchConditions } }]
           : []),
         { $count: "total" },
       ]),
@@ -281,16 +292,16 @@ exports.getAllUser = async (req, res) => {
     const totalCount = totalCountArr[0]?.total || 0;
 
     res.status(200).json({
-      message: "User list",
+      message: "User list fetched successfully",
       data,
       currentPage: parseInt(page),
       totalPages: Math.ceil(totalCount / limit),
       totalUsers: totalCount,
       status: true,
     });
-  } catch (err) {
-    console.error("Error in getAllUser:", err);
-    return res.status(500).json({ message: "Server Error", status: false });
+  } catch (error) {
+    console.error("Error in getAllUser:", error);
+    res.status(500).json({ message: "Server Error", status: false });
   }
 };
 
@@ -303,23 +314,29 @@ exports.login = async (req, res) => {
         .json({ message: error.details[0].message, status: false });
     }
     const { phone, password } = req.body;
-    console.log(phone, password);
     const user = await authModel.findOne({ phone: phone, password: password });
-    console.log(user);
     if (!user) {
       return res
         .status(400)
         .json({ message: "Invalid phone or password", status: false });
     }
+    const currentMonth = moment().format("YYYY-MM");
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
+    const maintenance = await Maintenance.findOne({
+      month: currentMonth,
+      $or: [{ buildingID: user.buildingID }, { heaightID: user.heaightID }],
+    });
+
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET);
     res.json({
       message: "Logged in successfully",
       data: user,
       token: token,
+      maintenance: maintenance,
       status: true,
     });
   } catch (err) {
+    console.log(err);
     return res.status(500).json({ message: "Server Error", status: false });
   }
 };

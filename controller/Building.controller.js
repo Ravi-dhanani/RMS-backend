@@ -87,6 +87,7 @@ exports.getBuildingByUserId = async (req, res) => {
       },
       { "authorities.user": 1, _id: 0 }
     ).populate("authorities.user");
+
     const result = {
       // authorityUsers: buildingUsers.flatMap(
       //   (building) =>
@@ -196,7 +197,7 @@ exports.getSocietyByBuilding = async (req, res) => {
     const authorHeights = await authModel.find(
       {
         heaightID: req.params.id,
-        role: "PRAMUKH",
+        role: "MAIN_PRAMUKH",
       },
       {
         name: 1,

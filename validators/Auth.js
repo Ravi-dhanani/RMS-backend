@@ -41,7 +41,36 @@ const authValidationSchema = Joi.object({
     }),
   }).optional(),
 
-  heaightID: objectIdValidator.optional(),
+  heaightID: objectIdValidator.when("role", {
+    not: Joi.valid("ADMIN"),
+    then: Joi.required().messages({
+      "any.required": "Height ID is required for this role",
+    }),
+    otherwise: Joi.optional(),
+  }),
+
+  buildingID: objectIdValidator.when("role", {
+    not: Joi.valid("ADMIN"),
+    then: Joi.required().messages({
+      "any.required": "Building ID is required for this role",
+    }),
+    otherwise: Joi.optional(),
+  }),
+  flourID: objectIdValidator.when("role", {
+    not: Joi.valid("ADMIN"),
+    then: Joi.required().messages({
+      "any.required": "Flour ID is required for this role",
+    }),
+    otherwise: Joi.optional(),
+  }),
+  flatID: objectIdValidator.when("role", {
+    not: Joi.valid("ADMIN"),
+    then: Joi.required().messages({
+      "any.required": "Flat ID is required for this role",
+    }),
+    otherwise: Joi.optional(),
+  }),
+
   familyMembers: Joi.array().optional(), // just to ensure it's an array
   businessDetails: Joi.array().optional(),
   vehicleDetails: Joi.array().optional(),

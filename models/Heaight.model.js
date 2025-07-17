@@ -31,7 +31,7 @@ const heaightSchema = new mongoose.Schema(
     address: { type: String, required: true },
     city: { type: String, required: true },
     pincode: { type: String, required: true },
-    admin: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    // admin: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     // authorities: [authoritySchema],
     images: [imageSchema],
   },

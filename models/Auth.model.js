@@ -31,6 +31,27 @@ const authModelSchema = new mongoose.Schema(
       ref: "Heaight",
       require: false,
     },
+    buildingID: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Building",
+      required: function () {
+        return this.role === "PRAMUKH";
+      },
+    },
+    flourID: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Flour",
+      required: function () {
+        return this.role === "USER";
+      },
+    },
+    flatID: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Flat",
+      required: function () {
+        return this.role === "USER";
+      },
+    },
   },
   {
     timestamps: true,
