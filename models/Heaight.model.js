@@ -1,16 +1,5 @@
 const mongoose = require("mongoose");
 
-const authoritySchema = new mongoose.Schema(
-  {
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: false,
-    },
-  },
-  { _id: false }
-);
-
 const imageSchema = new mongoose.Schema(
   {
     image: {

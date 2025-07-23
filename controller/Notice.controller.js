@@ -4,59 +4,53 @@ const Notice = require("../models/Notice.model");
 
 exports.createNotice = async (req, res) => {
   try {
-    const { title, description, heaightID, buildingID } = req.body;
+    const { title, description } = req.body;
     const id = await getUserIdFromToken(req.headers.authorization);
-    const user = await User.findById(id);
+
+    const user = await User.findById(id)
+      .select("role heaightID buildingID")
+      .lean();
 
     if (!user) {
       return res.status(404).json({ status: false, message: "User not found" });
     }
 
+    const noticeData = {
+      title,
+      description,
+      createdBy: user._id,
+    };
+
     if (user.role === "MAIN_PRAMUKH") {
-      if (!heaightID) {
-        return res
-          .status(400)
-          .json({ status: false, message: "Height ID required" });
+      if (!user.heaightID) {
+        return res.status(400).json({
+          status: false,
+          message: "Height ID is not assigned to this user",
+        });
       }
-
-      const notice = await Notice.create({
-        title,
-        description,
-        createdBy: user._id,
-        heaightID,
-      });
-
-      return res.status(201).json({
-        status: true,
-        message: "Notice created for height",
-        data: notice,
+      noticeData.heaightID = user.heaightID;
+    } else if (user.role === "PRAMUKH") {
+      if (!user.buildingID) {
+        return res.status(400).json({
+          status: false,
+          message: "Building ID is not assigned to this user",
+        });
+      }
+      noticeData.buildingID = user.buildingID;
+    } else {
+      return res.status(403).json({
+        status: false,
+        message: "You are not allowed to create notice",
       });
     }
 
-    if (user.role === "PRAMUKH") {
-      if (!buildingID) {
-        return res
-          .status(400)
-          .json({ status: false, message: "Building ID required" });
-      }
+    const notice = await Notice.create(noticeData);
 
-      const notice = await Notice.create({
-        title,
-        description,
-        createdBy: user._id,
-        buildingID,
-      });
-
-      return res.status(201).json({
-        status: true,
-        message: "Notice created for building",
-        data: notice,
-      });
-    }
-
-    return res
-      .status(403)
-      .json({ status: false, message: "You are not allowed to create notice" });
+    res.status(201).json({
+      status: true,
+      message: "Notice created successfully",
+      data: notice,
+    });
   } catch (error) {
     console.error("Create Notice Error:", error);
     return res.status(500).json({ status: false, message: "Server error" });
@@ -65,12 +59,37 @@ exports.createNotice = async (req, res) => {
 
 exports.getNotice = async (req, res) => {
   try {
-    const { heaightID, buildingID } = req.query;
+    const { type } = req.query;
+
+    const id = await getUserIdFromToken(req.headers.authorization);
+    const user = await User.findById(id)
+      .select("role heaightID buildingID")
+      .lean();
 
     let query = {};
 
-    if (buildingID) query.buildingID = buildingID;
-    else if (heaightID) query.heaightID = heaightID;
+    if (type === "all") {
+      query = {};
+    } else if (type === "heights") {
+      if (!user.heaightID) {
+        return res
+          .status(400)
+          .json({ status: false, message: "User does not have height access" });
+      }
+      query.heaightID = user.heaightID;
+    } else if (type === "building") {
+      if (!user.buildingID) {
+        return res.status(400).json({
+          status: false,
+          message: "User does not have building access",
+        });
+      }
+      query.buildingID = user.buildingID;
+    } else {
+      return res
+        .status(400)
+        .json({ status: false, message: "Invalid type parameter" });
+    }
 
     const notices = await Notice.find(query)
       .sort({ createdAt: -1 })

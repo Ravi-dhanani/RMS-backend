@@ -1,6 +1,9 @@
 const { flatValidationSchema } = require("../validators/Flat");
 const FlatModel = require("../models/Flat.model");
 const FlourModel = require("../models/Flour.model");
+const FamilyMember = require("../models/user/FamilyMemberDetail");
+const BusinessDetail = require("../models/user/BusinessDetail");
+const VehicleDetail = require("../models/user/VehicleDetail");
 
 exports.createFlat = async (req, res) => {
   try {
@@ -133,14 +136,41 @@ exports.getFlatByUser = async (req, res) => {
       {
         currentMember: 1,
       }
-    ).populate("currentMember");
+    )
+      .populate("currentMember", "name email phone role profile_pic")
+      .lean();
+
+    console.log(flat);
+
+    const [family, business, vehicle] = await Promise.all([
+      FamilyMember.find({ userId: flat.currentMember._id }),
+      BusinessDetail.findOne({ userId: flat.currentMember._id }),
+      VehicleDetail.find({ userId: flat.currentMember._id }),
+    ]);
+
     if (!flat) return res.status(404).json({ message: "Flat not found" });
+
+    const member = flat.currentMember;
+
     res.json({
       message: "User Details fetched successfully",
-      data: flat,
+      data: {
+        flatId: flat._id,
+        userId: member._id,
+        name: member.name,
+        email: member.email,
+        phone: member.phone,
+        role: member.role,
+        profile_pic: member.profile_pic,
+        family,
+        business,
+        vehicle,
+      },
+
       status: true,
     });
   } catch (err) {
+    console.log(err);
     res.status(500).json({ message: "Server Error", status: false });
   }
 };
