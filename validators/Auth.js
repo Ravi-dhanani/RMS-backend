@@ -89,6 +89,9 @@ const loginValidationSchema = Joi.object({
     "string.min": "Password must be at least 6 characters",
     "any.required": "Password is required",
   }),
+  fcmToken: Joi.string().required().messages({
+    "any.required": "FCM token is required",
+  }),
 });
 
 module.exports = { authValidationSchema, loginValidationSchema };

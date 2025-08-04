@@ -15,6 +15,6 @@ router.post("/login", login);
 router.get("/user/head/list", getUserHead);
 router.post("/user/by-height/:id", getAllUser);
 router.post("/upload", upload.array("images"), imagesAdd); // multiple images
-router.post("/user/update/:id", updateProfile);
+router.post("/user/update/:id", upload.single("profile_pic"), updateProfile);
 
 module.exports = router;

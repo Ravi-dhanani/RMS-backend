@@ -28,8 +28,7 @@ exports.createHeaight = async (req, res) => {
       status: true,
     });
   } catch (err) {
-    console.error("Error in createHeaight:", err);
-    res.status(500).json({ message: "Server Error", status: false });
+    res.status(500).json({ message: err.message, status: false });
   }
 };
 

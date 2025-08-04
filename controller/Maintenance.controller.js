@@ -96,62 +96,9 @@ exports.createMaintenance = async (req, res) => {
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
-    console.error("Create Maintenance Error:", error);
-    return res
-      .status(500)
-      .json({ status: false, message: "Server error", error: error.message });
+    return res.status(500).json({ status: false, message: error.message });
   }
 };
-
-// exports.getMaintenance = async (req, res) => {
-//   try {
-//     const { heaightID, buildingID, month, year } = req.query;
-
-//     let maintenanceQuery = {};
-//     if (heaightID) maintenanceQuery.heaightID = heaightID;
-//     if (buildingID) maintenanceQuery.buildingID = buildingID;
-//     console.log("Month Filter:", maintenanceQuery);
-
-//     const maintenanceList = await Maintenance.find(maintenanceQuery)
-//       .populate("buildingID", "buildingName")
-//       .populate("heaightID", "name")
-//       .lean();
-
-//     if (!maintenanceList.length) {
-//       return res
-//         .status(404)
-//         .json({ status: false, message: "No maintenance found" });
-//     }
-
-//     // ✅ If buildingID provided, show floors & flats details
-//     if (buildingID) {
-//       for (let maintenance of maintenanceList) {
-//         const floors = await Flour.find({ buildingId: buildingID }).lean();
-//         for (let floor of floors) {
-//           floor.flats = await Flat.find({ flourId: floor._id })
-//             .select("flatName currentMember isBooked")
-//             .populate("currentMember", "name")
-//             .lean();
-
-//           floor.flats = floor.flats.map((flat) => ({
-//             ...flat,
-//             paymentStatus: flat.isBooked === "Booked" ? "Pending" : "Complete",
-//           }));
-//         }
-//         maintenance.floors = floors;
-//       }
-//     }
-
-//     res.status(200).json({
-//       status: true,
-//       message: "Maintenance fetched successfully",
-//       data: maintenanceList,
-//     });
-//   } catch (error) {
-//     console.error("Error fetching maintenance:", error);
-//     res.status(500).json({ status: false, message: "Server error" });
-//   }
-// };
 
 exports.getMaintenance = async (req, res) => {
   try {
@@ -199,8 +146,7 @@ exports.getMaintenance = async (req, res) => {
       data: maintenanceList,
     });
   } catch (error) {
-    console.error("Error fetching maintenance:", error);
-    res.status(500).json({ status: false, message: "Server error" });
+    res.status(500).json({ status: false, message: error.message });
   }
 };
 
@@ -268,7 +214,6 @@ exports.getMaintenanceMonthWise = async (req, res) => {
       data: monthData,
     });
   } catch (error) {
-    console.error("Error fetching month-wise maintenance:", error);
     res.status(500).json({
       status: false,
       message: "Server error",
@@ -332,8 +277,7 @@ exports.getUserMaintenance = async (req, res) => {
       data: filteredData,
     });
   } catch (error) {
-    console.error("Error fetching user maintenance:", error);
-    res.status(500).json({ status: false, message: "Server error" });
+    res.status(500).json({ status: false, message: error.message });
   }
 };
 
@@ -390,7 +334,71 @@ exports.updatePaymentStatus = async (req, res) => {
       data: payment,
     });
   } catch (error) {
-    console.error("Error updating payment status:", error);
-    return res.status(500).json({ status: false, message: "Server error" });
+    return res.status(500).json({ status: false, message: error.message });
+  }
+};
+
+exports.getCurrentMonthMaintenance = async (req, res) => {
+  try {
+    const id = await getUserIdFromToken(req.headers.authorization);
+
+    const userFlat = await Flat.findOne({ currentMember: id })
+      .populate({
+        path: "currentMember",
+        select: "name",
+      })
+      .populate({
+        path: "flourId",
+        populate: {
+          path: "buildingId",
+          select: "heaight",
+        },
+      })
+      .lean();
+
+    if (!userFlat) {
+      return res.status(404).json({
+        status: false,
+        message: "User flat not found",
+      });
+    }
+
+    const heightID = userFlat.flourId?.buildingId?.heaight;
+
+    if (!heightID) {
+      return res.status(404).json({
+        status: false,
+        message: "Height not found for user",
+      });
+    }
+
+    const currentMonth = new Date().toISOString().slice(0, 7);
+
+    const currentMaintenance = await Maintenance.findOne({
+      heaightID: heightID,
+      month: currentMonth,
+    })
+      .populate("buildingID", "buildingName")
+      .populate("heaightID", "name")
+      .lean();
+
+    if (!currentMaintenance) {
+      return res.status(404).json({
+        status: false,
+        message: "No maintenance found for current month",
+      });
+    }
+
+    res.status(200).json({
+      status: true,
+      message: "Current month maintenance fetched successfully",
+      data: currentMaintenance,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: false,
+      message: "Server error",
+      error: error.message,
+    });
   }
 };

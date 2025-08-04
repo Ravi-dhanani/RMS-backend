@@ -157,7 +157,6 @@ exports.getFlourAndFlat = async (req, res) => {
       status: true,
     });
   } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({ message: "Server Error", status: false });
+    res.status(500).json({ message: error, status: false });
   }
 };

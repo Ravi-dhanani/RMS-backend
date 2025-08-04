@@ -140,8 +140,6 @@ exports.getFlatByUser = async (req, res) => {
       .populate("currentMember", "name email phone role profile_pic")
       .lean();
 
-    console.log(flat);
-
     const [family, business, vehicle] = await Promise.all([
       FamilyMember.find({ userId: flat.currentMember._id }),
       BusinessDetail.findOne({ userId: flat.currentMember._id }),
@@ -170,7 +168,6 @@ exports.getFlatByUser = async (req, res) => {
       status: true,
     });
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Server Error", status: false });
+    res.status(500).json({ message: err, status: false });
   }
 };

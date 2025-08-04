@@ -52,8 +52,7 @@ exports.createNotice = async (req, res) => {
       data: notice,
     });
   } catch (error) {
-    console.error("Create Notice Error:", error);
-    return res.status(500).json({ status: false, message: "Server error" });
+    return res.status(500).json({ status: false, message: error.message });
   }
 };
 
@@ -102,7 +101,6 @@ exports.getNotice = async (req, res) => {
       data: notices,
     });
   } catch (error) {
-    console.error("Get Notice Error:", error);
-    res.status(500).json({ status: false, message: "Server error" });
+    res.status(500).json({ status: false, message: error.message });
   }
 };

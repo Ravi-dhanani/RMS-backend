@@ -15,6 +15,7 @@ const { vehicleDetailsArraySchema } = require("../validators/Vehicle");
 const cloudinary = require("../config/cloudinary");
 const mongoose = require("mongoose");
 const Maintenance = require("../models/Maintenance.model");
+const getUserIdFromToken = require("../middleware/Auth");
 
 exports.register = async (req, res) => {
   const session = await authModel.startSession();
@@ -299,7 +300,6 @@ exports.getAllUser = async (req, res) => {
       status: true,
     });
   } catch (error) {
-    console.error("Error in getAllUser:", error);
     res.status(500).json({ message: "Server Error", status: false });
   }
 };
@@ -312,26 +312,24 @@ exports.login = async (req, res) => {
         .status(400)
         .json({ message: error.details[0].message, status: false });
     }
-    const { phone, password } = req.body;
+    const { phone, password, fcmToken } = req.body;
     const user = await authModel.findOne({ phone: phone, password: password });
     if (!user) {
       return res
         .status(400)
         .json({ message: "Invalid phone or password", status: false });
     }
-    const currentMonth = moment().format("YYYY-MM");
 
-    const maintenance = await Maintenance.findOne({
-      month: currentMonth,
-      $or: [{ buildingID: user.buildingID }, { heaightID: user.heaightID }],
-    });
+    if (fcmToken && user.fcmToken !== fcmToken) {
+      user.fcmToken = fcmToken;
+      await user.save();
+    }
 
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET);
     res.json({
       message: "Logged in successfully",
       data: user,
       token: token,
-      maintenance: maintenance,
       status: true,
     });
   } catch (err) {
@@ -382,8 +380,7 @@ exports.getProfilePic = async (req, res) => {
       status: true,
     });
   } catch (err) {
-    console.error("Get Profile Pic Error:", err);
-    return res.status(500).json({ message: "Server Error", status: false });
+    return res.status(500).json({ message: err, status: false });
   }
 };
 
@@ -421,8 +418,7 @@ exports.updateProfilePic = async (req, res) => {
       status: true,
     });
   } catch (err) {
-    console.error("Update Profile Pic Error:", err);
-    return res.status(500).json({ message: "Server Error", status: false });
+    return res.status(500).json({ message: err, status: false });
   }
 };
 
@@ -453,8 +449,7 @@ exports.imagesAdd = async (req, res) => {
       images: uploadedImages,
     });
   } catch (error) {
-    console.error("Upload error:", error);
-    return res.status(500).json({ message: "Upload failed", error });
+    return res.status(500).json({ message: error, error });
   }
 };
 
@@ -465,63 +460,76 @@ exports.updateProfile = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const {
-      name,
-      email,
-      phone,
-      password,
-      role,
-      heaightID,
-      profile_pic,
-      familyMembers,
-      businessDetails,
-      vehicleDetails,
-    } = req.body;
+    const { name, email, phone, password, role, heaightID, oldImageId } =
+      req.body;
+
+    // Parse nested JSON fields from form-data
+    const familyMembers = req.body.familyMembers
+      ? JSON.parse(req.body.familyMembers)
+      : null;
+    const businessDetails = req.body.businessDetails
+      ? JSON.parse(req.body.businessDetails)
+      : null;
+    const vehicleDetails = req.body.vehicleDetails
+      ? JSON.parse(req.body.vehicleDetails)
+      : null;
 
     const user = await authModel.findById(id);
     if (!user) {
       return res.status(404).json({ message: "User not found", status: false });
     }
 
+    // Check phone uniqueness if updated
     if (phone && phone !== user.phone) {
       const existingPhoneUser = await authModel.findOne({ phone });
-
-      // Check if phone is used by another user (not the current user)
       if (existingPhoneUser && existingPhoneUser._id.toString() !== id) {
         return res.status(400).json({
           message: "Phone number already in use by another user",
           status: false,
         });
       }
-
-      // If phone is not used or it's the same user, allow update
       user.phone = phone;
     }
-    // 1. Update user base fields
+
     if (name) user.name = name;
     if (email) user.email = email;
-    if (role) user.role = role;
+    if (role) user.role = role.trim();
     if (heaightID) user.heaightID = heaightID;
     if (password) user.password = password;
 
-    if (profile_pic) {
+    // ✅ Handle profile picture upload
+    if (req.file) {
+      if (oldImageId) {
+        try {
+          await cloudinary.uploader.destroy(oldImageId);
+        } catch (err) {
+          console.warn("Cloudinary deletion failed:", err.message);
+        }
+      }
+
+      const fileBuffer = req.file.buffer.toString("base64");
+      const fileDataUri = `data:${req.file.mimetype};base64,${fileBuffer}`;
+      const result = await cloudinary.uploader.upload(fileDataUri, {
+        folder: "profile_pics",
+      });
+
       user.profile_pic = {
-        id: profile_pic.id,
-        image: profile_pic.image,
+        id: result.public_id,
+        image: result.secure_url,
       };
     }
 
     await user.save({ session });
-
     const userId = user._id;
 
-    // 2. Replace related collections (if provided)
+    // ✅ Family Members
     if (Array.isArray(familyMembers)) {
       await FamilyMember.deleteMany({ userId }, { session });
       const familyWithUser = familyMembers.map((item) => ({ ...item, userId }));
       await FamilyMember.insertMany(familyWithUser, { session });
     }
 
+    // ✅ Business Details
     if (Array.isArray(businessDetails)) {
       await BusinessDetail.deleteMany({ userId }, { session });
       const businessWithUser = businessDetails.map((item) => ({
@@ -531,28 +539,45 @@ exports.updateProfile = async (req, res) => {
       await BusinessDetail.insertMany(businessWithUser, { session });
     }
 
+    const authorityId = await getUserIdFromToken(req.headers.authorization);
+    const userRole = await authModel.findById(authorityId).session(session);
+
+    // ✅ Vehicle Details (only for PRAMUKH or MAIN_PRAMUKH)
     if (Array.isArray(vehicleDetails)) {
-      await VehicleDetail.deleteMany({ userId }, { session });
-      const vehicleWithUser = vehicleDetails.map((item) => ({
-        ...item,
-        userId,
-      }));
-      await VehicleDetail.insertMany(vehicleWithUser, { session });
+      if (userRole.role === "PRAMUKH" || userRole.role === "MAIN_PRAMUKH") {
+        await VehicleDetail.deleteMany({ userId }, { session });
+        const vehicleWithUser = vehicleDetails.map((item) => ({
+          ...item,
+          userId,
+        }));
+        await VehicleDetail.insertMany(vehicleWithUser, { session });
+      } else {
+        return res.status(403).json({
+          message: "Only PRAMUKH or MAIN_PRAMUKH can update vehicle details",
+          status: false,
+        });
+      }
     }
 
     await session.commitTransaction();
     session.endSession();
 
-    res.status(200).json({
+    const populatedUser = {
+      ...user.toObject(),
+    };
+
+    populatedUser.familyMembers = await FamilyMember.find({ userId });
+    populatedUser.businessDetails = await BusinessDetail.find({ userId });
+    populatedUser.vehicleDetails = await VehicleDetail.find({ userId });
+
+    return res.status(200).json({
       message: "Profile updated successfully",
-      data: user,
+      data: populatedUser,
       status: true,
     });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-
-    console.error("Update Error:", err);
     return res.status(500).json({
       message: "Server Error",
       error: err.message,
